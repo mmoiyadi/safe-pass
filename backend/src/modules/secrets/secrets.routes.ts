@@ -223,10 +223,20 @@ export function secretRoutes(prisma: PrismaClient) {
 
     /* ---------------- the caller's vaults ---------------- */
     app.get('/', async (request) => {
+      // Invited memberships are included, flagged: without them an invited member sees no
+      // vault at all and has nothing to accept. They already hold the key wrap, so the vault's
+      // name decrypts for them — which is what lets the invitation name what they were offered.
       const memberships = await prisma.vaultMembership.findMany({
-        where: { userId: request.session!.userId, status: 'active' },
-        include: { vault: true, keyWraps: true },
+        where: { userId: request.session!.userId, status: { in: ['active', 'invited'] } },
+        include: { vault: true, keyWraps: true, },
       });
+
+      const running = await prisma.vaultRotation.findMany({
+        where: { vaultId: { in: memberships.map((m) => m.vaultId) }, state: 'running' },
+        select: { vaultId: true },
+      });
+      const rotating = new Set(running.map((r) => r.vaultId));
+
       return memberships.map((m) => ({
         id: m.vault.id,
         name: text(m.vault.name),
@@ -234,7 +244,8 @@ export function secretRoutes(prisma: PrismaClient) {
         keyVersion: m.vault.keyVersion,
         nameKeyVersion: m.vault.nameKeyVersion,
         role: m.role,
-        rotationPending: false,
+        status: m.status,
+        rotationPending: rotating.has(m.vaultId),
         keyWraps: m.keyWraps.map((w) => ({
           keyVersion: w.keyVersion,
           wrappedVaultKey: text(w.wrappedVaultKey),

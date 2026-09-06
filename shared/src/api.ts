@@ -92,6 +92,8 @@ export interface VaultSummary {
   keyVersion: number;
   nameKeyVersion: number;
   role: Role;
+  /** `invited` means the offer has been made but not yet accepted. */
+  status: MembershipStatus;
   /** True while a rotation is open; surfaces the persistent banner (FR-084). */
   rotationPending: boolean;
 }

@@ -173,38 +173,38 @@ enforcement at the API, revoke, and confirm refusal within 60 seconds.
 
 ### Tests for US4 (Principle IV — write these first, and confirm they fail)
 
-- [ ] T074 [P] [US4] Authorization matrix tests in `backend/tests/security/authorization.test.ts` exercising every vault route as Owner, Editor, Viewer, revoked member, and non-member
-- [ ] T075 [P] [US4] Non-enumeration tests in `backend/tests/security/enumeration.test.ts` — a non-member's request for a vault returns `404` identical to a vault that does not exist, and `/users/public-key` returns `404` identically for unknown and unverified accounts
-- [ ] T076 [P] [US4] Revocation tests in `backend/tests/security/revocation.test.ts` asserting refusal is immediate and **independent of re-encryption**, and that every `VaultKeyWrap` for the revoked member is deleted at all generations (FR-080)
-- [ ] T077 [P] [US4] Rotation-integrity tests in `backend/tests/security/rotation.test.ts` — remaining members can read both generations mid-rotation, an interrupted rotation resumes from its cursor, and close is refused while any row remains at the old generation (FR-083)
-- [ ] T078 [P] [US4] Pending-invitation tests in `backend/tests/security/invitation.test.ts` asserting the row and the outbound email carry no key material and no vault name (FR-066, FR-067)
+- [X] T074 [P] [US4] Authorization matrix tests in `backend/tests/security/authorization.test.ts` exercising every vault route as Owner, Editor, Viewer, revoked member, and non-member
+- [X] T075 [P] [US4] Non-enumeration tests in `backend/tests/security/enumeration.test.ts` — a non-member's request for a vault returns `404` identical to a vault that does not exist, and `/users/public-key` returns `404` identically for unknown and unverified accounts
+- [X] T076 [P] [US4] Revocation tests in `backend/tests/security/revocation.test.ts` asserting refusal is immediate and **independent of re-encryption**, and that every `VaultKeyWrap` for the revoked member is deleted at all generations (FR-080)
+- [X] T077 [P] [US4] Rotation-integrity tests in `backend/tests/security/rotation.test.ts` — remaining members can read both generations mid-rotation, an interrupted rotation resumes from its cursor, and close is refused while any row remains at the old generation (FR-083)
+- [X] T078 [P] [US4] Pending-invitation tests in `backend/tests/security/invitation.test.ts` asserting the row and the outbound email carry no key material and no vault name (FR-066, FR-067)
 
 ### Implementation for US4
 
-- [ ] T079 [P] [US4] Vault CRUD in `backend/src/modules/vaults/vaults.route.ts`, refusing deletion of a vault that still has other members (FR-024)
-- [ ] T080 [US4] Implement the vault authorization middleware in `backend/src/middleware/vault-authz.ts`, resolving `VaultMembership(vaultId, callerId, status='active')` **before** loading any data, then checking role
-- [ ] T081 [P] [US4] Implement `GET /users/public-key` in `backend/src/modules/vaults/public-key.route.ts`, rate limited and returning a uniform `404` for unknown and unverified accounts
-- [ ] T082 [US4] Implement `POST /vaults/{id}/members` in `backend/src/modules/vaults/invite.route.ts` with both outcomes: `201` with a wrapped key when the address has an account, `202` with a pending invitation when it does not (FR-025, FR-066)
-- [ ] T083 [US4] Implement pending-invitation storage in `backend/src/modules/vaults/invitation.service.ts` and **reject any request that supplies key material for a pending invitation** (FR-067)
-- [ ] T084 [US4] Promote pending invitations to `ready` on registration and notify vault owners, in `backend/src/modules/auth/register.route.ts` and `backend/src/modules/vaults/invitation.service.ts` (FR-069)
-- [ ] T085 [US4] Implement `POST /vaults/{id}/invitations/{invId}/complete` in `backend/src/modules/vaults/invitation.route.ts`, creating the membership from the Owner-supplied wrap
-- [ ] T086 [P] [US4] Implement `GET /vaults/{id}/invitations`, `DELETE .../{invId}`, and `GET /invitations` in `backend/src/modules/vaults/invitation.route.ts`, disclosing no vault name to the recipient (FR-066, FR-070)
-- [ ] T087 [P] [US4] Implement invitation expiry at 14 days as a scheduled job in `backend/src/modules/vaults/invitation.expiry.ts` (FR-071)
-- [ ] T088 [US4] Implement membership accept, decline, role change, and revoke in `backend/src/modules/vaults/members.route.ts`, refusing removal of the last owner (FR-035)
-- [ ] T089 [US4] Implement revocation in `backend/src/modules/vaults/revoke.ts` — delete every `VaultKeyWrap` for that membership at all generations and open a rotation, in one transaction (FR-080)
-- [ ] T090 [US4] Implement `POST /vaults/{id}/rotation` in `backend/src/modules/vaults/rotation.route.ts`, registering generation v+1 alongside v without re-encrypting anything
-- [ ] T091 [US4] Implement `POST /vaults/{id}/rotation/batch` in `backend/src/modules/vaults/rotation.route.ts` as a single transaction per batch that advances the cursor, accepting re-encrypted secrets, folder names, tag names, and the vault name (FR-081, FR-083)
-- [ ] T092 [US4] Implement `POST /vaults/{id}/rotation/close` in `backend/src/modules/vaults/rotation.route.ts`, refusing while any secret, folder, tag, or vault name remains at `fromVersion`, and deleting the old generation's wraps only on success
-- [ ] T093 [US4] Add a rotation-completeness test in `backend/tests/security/rotation-completeness.test.ts` asserting close is refused when a folder, tag, or vault name is still at the old generation — the check that prevents permanent loss of those labels (FR-081)
-- [ ] T094 [US4] Implement `GET /vaults/{id}/rotation` in `backend/src/modules/vaults/rotation.route.ts` for progress and resume
-- [ ] T095 [US4] Implement the append-only activity log writer in `backend/src/modules/activity/activity.route.ts` covering every invitation, membership, role, rotation, and export action
-- [ ] T096 [US4] Implement multi-generation key selection in `frontend/src/vault/keyring.ts` so a reader picks the key by each row's `keyVersion` and a writer always uses the highest generation it holds
-- [ ] T097 [US4] Implement the client-side rotation worker in `frontend/src/vault/rotation-worker.ts` — batched re-encryption of secrets, folder names, tag names, and the vault name, resuming from the server's cursor and never blocking reads or writes (FR-081, FR-082, FR-083)
-- [ ] T098 [P] [US4] Implement the vault switcher and vault creation UI in `frontend/src/features/vault-list/`
-- [ ] T099 [P] [US4] Implement sharing UI in `frontend/src/features/sharing/` — invite by email, role assignment, member list, revoke
-- [ ] T100 [US4] Implement pending-invitation UI in `frontend/src/features/sharing/PendingInvitations.tsx`, telling the inviting owner that completion needs their action later and is not immediate (FR-068)
-- [ ] T101 [US4] Implement the rotation progress indicator and persistent incomplete-rotation banner in `frontend/src/features/sharing/RotationStatus.tsx`, stating that the removed member's old key still opens data they already hold until it completes (FR-084, FR-085)
-- [ ] T102 [P] [US4] Implement the activity log view in `frontend/src/features/sharing/ActivityLog.tsx`
+- [X] T079 [P] [US4] Vault CRUD in `backend/src/modules/vaults/vaults.route.ts`, refusing deletion of a vault that still has other members (FR-024)
+- [X] T080 [US4] Implement the vault authorization middleware in `backend/src/middleware/vault-authz.ts`, resolving `VaultMembership(vaultId, callerId, status='active')` **before** loading any data, then checking role
+- [X] T081 [P] [US4] Implement `GET /users/public-key` in `backend/src/modules/vaults/public-key.route.ts`, rate limited and returning a uniform `404` for unknown and unverified accounts
+- [X] T082 [US4] Implement `POST /vaults/{id}/members` in `backend/src/modules/vaults/invite.route.ts` with both outcomes: `201` with a wrapped key when the address has an account, `202` with a pending invitation when it does not (FR-025, FR-066)
+- [X] T083 [US4] Implement pending-invitation storage in `backend/src/modules/vaults/invitation.service.ts` and **reject any request that supplies key material for a pending invitation** (FR-067)
+- [X] T084 [US4] Promote pending invitations to `ready` on registration and notify vault owners, in `backend/src/modules/auth/register.route.ts` and `backend/src/modules/vaults/invitation.service.ts` (FR-069)
+- [X] T085 [US4] Implement `POST /vaults/{id}/invitations/{invId}/complete` in `backend/src/modules/vaults/invitation.route.ts`, creating the membership from the Owner-supplied wrap
+- [X] T086 [P] [US4] Implement `GET /vaults/{id}/invitations`, `DELETE .../{invId}`, and `GET /invitations` in `backend/src/modules/vaults/invitation.route.ts`, disclosing no vault name to the recipient (FR-066, FR-070)
+- [X] T087 [P] [US4] Implement invitation expiry at 14 days as a scheduled job in `backend/src/modules/vaults/invitation.expiry.ts` (FR-071)
+- [X] T088 [US4] Implement membership accept, decline, role change, and revoke in `backend/src/modules/vaults/members.route.ts`, refusing removal of the last owner (FR-035)
+- [X] T089 [US4] Implement revocation in `backend/src/modules/vaults/revoke.ts` — delete every `VaultKeyWrap` for that membership at all generations and open a rotation, in one transaction (FR-080)
+- [X] T090 [US4] Implement `POST /vaults/{id}/rotation` in `backend/src/modules/vaults/rotation.route.ts`, registering generation v+1 alongside v without re-encrypting anything
+- [X] T091 [US4] Implement `POST /vaults/{id}/rotation/batch` in `backend/src/modules/vaults/rotation.route.ts` as a single transaction per batch that advances the cursor, accepting re-encrypted secrets, folder names, tag names, and the vault name (FR-081, FR-083)
+- [X] T092 [US4] Implement `POST /vaults/{id}/rotation/close` in `backend/src/modules/vaults/rotation.route.ts`, refusing while any secret, folder, tag, or vault name remains at `fromVersion`, and deleting the old generation's wraps only on success
+- [X] T093 [US4] Add a rotation-completeness test in `backend/tests/security/rotation-completeness.test.ts` asserting close is refused when a folder, tag, or vault name is still at the old generation — the check that prevents permanent loss of those labels (FR-081)
+- [X] T094 [US4] Implement `GET /vaults/{id}/rotation` in `backend/src/modules/vaults/rotation.route.ts` for progress and resume
+- [X] T095 [US4] Implement the append-only activity log writer in `backend/src/modules/activity/activity.route.ts` covering every invitation, membership, role, rotation, and export action
+- [X] T096 [US4] Implement multi-generation key selection in `frontend/src/vault/keyring.ts` so a reader picks the key by each row's `keyVersion` and a writer always uses the highest generation it holds
+- [X] T097 [US4] Implement the client-side rotation worker in `frontend/src/vault/rotation-worker.ts` — batched re-encryption of secrets, folder names, tag names, and the vault name, resuming from the server's cursor and never blocking reads or writes (FR-081, FR-082, FR-083)
+- [X] T098 [P] [US4] Implement the vault switcher and vault creation UI in `frontend/src/features/vault-list/`
+- [X] T099 [P] [US4] Implement sharing UI in `frontend/src/features/sharing/` — invite by email, role assignment, member list, revoke
+- [X] T100 [US4] Implement pending-invitation UI in `frontend/src/features/sharing/PendingInvitations.tsx`, telling the inviting owner that completion needs their action later and is not immediate (FR-068)
+- [X] T101 [US4] Implement the rotation progress indicator and persistent incomplete-rotation banner in `frontend/src/features/sharing/RotationStatus.tsx`, stating that the removed member's old key still opens data they already hold until it completes (FR-084, FR-085)
+- [X] T102 [P] [US4] Implement the activity log view in `frontend/src/features/sharing/ActivityLog.tsx`
 
 **Checkpoint**: Quickstart V5, V12, and V13 pass.
 
@@ -298,6 +298,7 @@ secrets are still readable after entering the master password.
 - [ ] T140 [P] Write operator documentation in `docs/operations.md` covering deployment, TLS, backup of ciphertext, and the breach runbook (research.md §8)
 - [ ] T141 [P] Write the security model summary in `docs/security-model.md` for users, stating plainly what the operator can and cannot see (data-model.md closing section)
 - [ ] T142 [P] Add a dependency advisory scan to CI in `.github/workflows/audit.yml` and a release checklist gate in `docs/operations.md`, per the constitution's requirement that crypto, auth, and serialization dependencies be reviewed for known advisories before a release
+- [ ] T144 Implement email address verification in `backend/src/modules/auth/verify.routes.ts` — a token emailed at registration that sets `User.emailVerifiedAt`, replacing the stand-in in `auth.routes.ts` that marks every account verified on creation. **Gap found during US4**: the spec assumes verification gates access to a shared vault (Assumptions, "Registration is in scope") and T075/T081 both specify `404` for unverified accounts, but no user story tasked the flow that sets the field, so nothing would ever verify anyone
 - [ ] T143 Run a threat-model review of the crypto and auth surface and record its findings in `docs/threat-model.md` before release, per the constitution's Development Workflow gate
 
 ---

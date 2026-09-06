@@ -17,8 +17,24 @@ export interface Mail {
 
 const SMTP_URL = process.env['SMTP_URL'] ?? 'smtp://localhost:1025';
 
+/**
+ * Outbox, so tests can assert on what actually left — FR-066 requires an invitation email to
+ * name no vault and carry nothing that opens one, and that is only checkable by reading it.
+ * Bounded, because a long-running process must not accumulate message bodies in memory.
+ */
+const outbox: Mail[] = [];
+const OUTBOX_LIMIT = 200;
+
+export const sentMail = (): readonly Mail[] => outbox;
+export const clearMail = (): void => {
+  outbox.length = 0;
+};
+
 /** Minimal SMTP: enough for a local catcher, replaced by a provider SDK before production. */
 export async function sendMail(mail: Mail): Promise<void> {
+  outbox.push(mail);
+  if (outbox.length > OUTBOX_LIMIT) outbox.shift();
+
   const url = new URL(SMTP_URL);
   const host = url.hostname;
   const port = Number(url.port || 25);

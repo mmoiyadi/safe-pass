@@ -8,6 +8,9 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { accountRoutes } from './modules/auth/account.routes.js';
 import { secretRoutes, templateRoutes } from './modules/secrets/secrets.routes.js';
 import { organiseRoutes } from './modules/secrets/organise.routes.js';
+import { vaultRoutes } from './modules/vaults/vaults.routes.js';
+import { sharingRoutes, accountSharingRoutes } from './modules/vaults/sharing.routes.js';
+import { rotationRoutes } from './modules/vaults/rotation.routes.js';
 import type { PrismaClient } from '../prisma/generated/client/index.js';
 
 export interface ServerDeps {
@@ -63,6 +66,10 @@ export async function buildServer(deps: ServerDeps) {
 
   await app.register(authRoutes(deps.prisma), { prefix: '/api/v1/auth' });
   await app.register(accountRoutes(deps.prisma), { prefix: '/api/v1/account' });
+  await app.register(vaultRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
+  await app.register(sharingRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
+  await app.register(rotationRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
+  await app.register(accountSharingRoutes(deps.prisma), { prefix: '/api/v1' });
   await app.register(secretRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
   await app.register(organiseRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
   await app.register(templateRoutes(deps.prisma), { prefix: '/api/v1/templates' });

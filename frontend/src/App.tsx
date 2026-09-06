@@ -9,16 +9,22 @@ import { Register } from './features/register/Register.js';
 import { Unlock } from './features/unlock/Unlock.js';
 import { ForgotPassword } from './features/unlock/ForgotPassword.js';
 import { SecretList } from './features/vault-list/SecretList.js';
+import { VaultSwitcher, type VaultWithName } from './features/vault-list/VaultSwitcher.js';
 import { Organise } from './features/organise/Organise.js';
+import { Sharing } from './features/sharing/Sharing.js';
+import { IncomingInvitations } from './features/sharing/IncomingInvitations.js';
 import type { NamedItem } from './features/vault-list/Filters.js';
 import { ChangePassword } from './features/settings/ChangePassword.js';
+import { decrypt } from './crypto/envelope.js';
+import { vaultKeyFor } from './vault/keyring.js';
 
-type Screen = 'unlock' | 'register' | 'forgot' | 'vault' | 'settings' | 'organise';
+type Screen = 'unlock' | 'register' | 'forgot' | 'vault' | 'settings' | 'organise' | 'sharing';
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('unlock');
   const [email, setEmail] = useState('');
-  const [vaults, setVaults] = useState<VaultSummary[]>([]);
+  const [vaults, setVaults] = useState<VaultWithName[]>([]);
+  const [selectedVaultId, setSelectedVaultId] = useState<string>('');
   const [templates, setTemplates] = useState<TemplateVersionRecord[]>([]);
   const [reauthNeeded, setReauthNeeded] = useState(false);
   const [organise, setOrganise] = useState<{
@@ -49,16 +55,41 @@ export function App() {
 
   useEffect(() => setReauthHandler(() => setReauthNeeded(true)), []);
 
-  const enterVault = useCallback(async (userEmail: string) => {
-    setEmail(userEmail);
-    const [loaded, loadedTemplates] = await Promise.all([
-      loadVaults(),
-      api<TemplateVersionRecord[]>('GET', '/templates'),
-    ]);
-    setVaults(loaded);
-    setTemplates(loadedTemplates);
-    setScreen('vault');
+  /** Vault names are encrypted under each vault's own key, so they decrypt after unlock. */
+  const refreshVaults = useCallback(async (): Promise<VaultWithName[]> => {
+    const loaded: VaultSummary[] = await loadVaults();
+    const named: VaultWithName[] = [];
+    for (const vault of loaded) {
+      let decryptedName = 'Untitled vault';
+      try {
+        decryptedName = await decrypt(vaultKeyFor(vault.id, vault.nameKeyVersion), vault.name);
+      } catch {
+        // A name at a generation this device does not hold is a rotation still in flight.
+        // Showing a placeholder is better than hiding the vault entirely.
+        decryptedName = 'Vault (re-encrypting)';
+      }
+      named.push({ ...vault, decryptedName });
+    }
+    setVaults(named);
+    setSelectedVaultId((current) => {
+      if (current && named.some((v) => v.id === current && v.status === 'active')) return current;
+      return named.find((v) => v.status === 'active')?.id ?? '';
+    });
+    return named;
   }, []);
+
+  const enterVault = useCallback(
+    async (userEmail: string) => {
+      setEmail(userEmail);
+      const [, loadedTemplates] = await Promise.all([
+        refreshVaults(),
+        api<TemplateVersionRecord[]>('GET', '/templates'),
+      ]);
+      setTemplates(loadedTemplates);
+      setScreen('vault');
+    },
+    [refreshVaults],
+  );
 
   if (reauthNeeded) {
     return <ReauthPrompt email={email} onDone={() => { setReauthNeeded(false); void enterVault(email); }} />;
@@ -80,18 +111,27 @@ export function App() {
     );
   }
 
-  const vault = vaults[0];
+  const active = vaults.filter((v) => v.status === 'active');
+  const vault = active.find((v) => v.id === selectedVaultId) ?? active[0];
   const keyring = getKeyring();
   return (
     <main>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-        <h1 style={{ fontSize: '1.3rem', margin: 0 }}>{email}</h1>
-        <nav style={{ display: 'flex', gap: '0.5rem' }}>
-          <button type="button" onClick={() => setScreen(screen === 'vault' ? 'organise' : 'vault')} style={navButton}>
-            {screen === 'vault' ? 'Organise' : 'Vault'}
-          </button>
-          <button type="button" onClick={() => setScreen(screen === 'settings' ? 'vault' : 'settings')} style={navButton}>
-            {screen === 'settings' ? 'Vault' : 'Settings'}
+      {/*
+        Two levels, because there are two levels. Settings and Lock act on the account and the
+        session; Secrets, Organise and Sharing act on whichever vault is selected and silently
+        re-target when it changes. Presenting them as one flat row claimed they were peers, and
+        gave no signal about which half a vault switch had just changed the meaning of.
+      */}
+      <header style={accountBar}>
+        <h1 style={{ fontSize: '1.15rem', margin: 0 }}>{email}</h1>
+        <nav aria-label="Account" style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setScreen('settings')}
+            aria-current={screen === 'settings' ? 'page' : undefined}
+            style={screen === 'settings' ? navButtonActive : navButton}
+          >
+            Settings
           </button>
           <button type="button" onClick={() => { lock(); setScreen('unlock'); }} style={navButton}>
             Lock
@@ -99,8 +139,56 @@ export function App() {
         </nav>
       </header>
 
+      <IncomingInvitations
+        vaults={vaults}
+        onResponded={async () => {
+          await refreshVaults();
+          setReloadKey((k) => k + 1);
+        }}
+      />
+
+      {vault && screen !== 'settings' && (
+        <section aria-label="Vault" style={vaultRegion}>
+          <VaultSwitcher
+            vaults={active}
+            selectedId={vault.id}
+            onSelect={(id) => {
+              setSelectedVaultId(id);
+              // Stay on the same kind of screen, now pointed at the vault just chosen —
+              // switching vault should not also throw away what you were doing.
+              setReloadKey((k) => k + 1);
+            }}
+            onCreated={async () => {
+              await refreshVaults();
+              setReloadKey((k) => k + 1);
+            }}
+          />
+
+          <nav aria-label={`Actions for this vault`} style={vaultTabs}>
+            {(['vault', 'organise', 'sharing'] as const).map((target) => (
+              <button
+                key={target}
+                type="button"
+                onClick={() => setScreen(target)}
+                aria-current={screen === target ? 'page' : undefined}
+                style={screen === target ? vaultTabActive : vaultTab}
+              >
+                {target === 'vault' ? 'Secrets' : target === 'organise' ? 'Folders & tags' : 'Sharing'}
+              </button>
+            ))}
+          </nav>
+        </section>
+      )}
+
       {screen === 'settings' && keyring && (
-        <ChangePassword email={email} wrappedUserKey={keyring.wrappedUserKey} onChanged={() => { lock(); setScreen('unlock'); }} />
+        <ChangePassword
+          email={email}
+          wrappedUserKey={keyring.wrappedUserKey}
+          onChanged={() => {
+            lock();
+            setScreen('unlock');
+          }}
+        />
       )}
       {screen === 'settings' && !keyring && (
         <p style={{ color: 'var(--muted)' }}>
@@ -108,6 +196,20 @@ export function App() {
           and sign in again to use this screen.
         </p>
       )}
+
+      {screen === 'sharing' && vault && (
+        <Sharing
+          vaultId={vault.id}
+          keyVersion={vault.keyVersion}
+          personal={vault.kind === 'personal'}
+          myRole={vault.role}
+          onChanged={async () => {
+            await refreshVaults();
+            setReloadKey((k) => k + 1);
+          }}
+        />
+      )}
+
       {screen === 'organise' && vault && (
         <Organise
           vaultId={vault.id}
@@ -122,7 +224,7 @@ export function App() {
       {vault && templates.length > 0 && (
         <div hidden={screen !== 'vault'}>
           <SecretList
-            key={reloadKey}
+            key={`${vault.id}:${reloadKey}`}
             vaultId={vault.id}
             templates={templates}
             shared={vault.kind !== 'personal'}
@@ -166,6 +268,56 @@ function ReauthPrompt({ email, onDone }: { email: string; onDone: () => void }) 
     </main>
   );
 }
+
+const accountBar: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '1rem',
+  paddingBottom: '0.6rem',
+  borderBottom: '1px solid var(--border)',
+  marginBottom: '0.9rem',
+};
+
+/** The vault and everything scoped to it, visually contained so the nesting is legible. */
+const vaultRegion: React.CSSProperties = {
+  marginBottom: '1.1rem',
+};
+
+const vaultTabs: React.CSSProperties = {
+  display: 'flex',
+  gap: '0.25rem',
+  marginTop: '0.6rem',
+  borderBottom: '1px solid var(--border)',
+};
+
+const vaultTab: React.CSSProperties = {
+  padding: '0.4rem 0.8rem',
+  fontSize: '0.92rem',
+  border: 'none',
+  borderBottom: '2px solid transparent',
+  background: 'transparent',
+  color: 'var(--muted)',
+  cursor: 'pointer',
+  marginBottom: '-1px',
+};
+
+const vaultTabActive: React.CSSProperties = {
+  ...vaultTab,
+  color: 'var(--fg)',
+  borderBottom: '2px solid var(--accent)',
+  fontWeight: 600,
+};
+
+const navButtonActive: React.CSSProperties = {
+  padding: '0.35rem 0.7rem',
+  fontSize: '0.9rem',
+  borderRadius: 4,
+  border: '1px solid var(--accent)',
+  background: 'var(--accent)',
+  color: '#fff',
+  cursor: 'pointer',
+};
 
 const navButton: React.CSSProperties = {
   padding: '0.35rem 0.7rem',

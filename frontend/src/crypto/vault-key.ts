@@ -6,7 +6,7 @@
  * generation they hold. See research.md §11.
  */
 import type { Envelope, WrappedKey } from '@pm/shared';
-import { bytesToBase64Url, base64UrlToBytes } from '@pm/shared';
+import { ALG_RSA_OAEP, frameKeyWrap, unframeKeyWrap } from '@pm/shared';
 import { decryptBytes, encryptBytes } from './envelope.js';
 
 export function generateVaultKey(): Uint8Array {
@@ -39,18 +39,20 @@ export async function wrapVaultKeyForMember(
   vaultKey: Uint8Array,
 ): Promise<Envelope<WrappedKey>> {
   const sealed = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, memberPublicKey, vaultKey);
-  return bytesToBase64Url(new Uint8Array(sealed)) as Envelope<WrappedKey>;
+  // Framed with the same version/algorithm header an AES wrap carries, so the server can
+  // validate every key wrap the same way without being able to open any of them.
+  return frameKeyWrap(ALG_RSA_OAEP, new Uint8Array(sealed)) as Envelope<WrappedKey>;
 }
 
 export async function unwrapVaultKeyForMember(
   privateKey: CryptoKey,
   wrapped: Envelope<WrappedKey>,
 ): Promise<Uint8Array> {
-  const raw = await crypto.subtle.decrypt(
-    { name: 'RSA-OAEP' },
-    privateKey,
-    base64UrlToBytes(wrapped),
-  );
+  const { algorithm, payload } = unframeKeyWrap(wrapped);
+  if (algorithm !== ALG_RSA_OAEP) {
+    throw new Error(`Expected an RSA-OAEP key wrap, got algorithm ${algorithm}`);
+  }
+  const raw = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, payload);
   return new Uint8Array(raw);
 }
 

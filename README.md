@@ -10,19 +10,19 @@ came before the code, and the code is traceable back to them.
 
 ## Status
 
-**73 of 143 tasks.** Three of seven user stories are complete and working end to end.
+**102 of 144 tasks.** Four of seven user stories are complete and working end to end.
 
 | Story | | |
 |---|---|---|
 | US1 — Secure vault access and secret storage | 36/36 | ✅ |
 | US2 — Typed secrets from built-in templates | 9/9 | ✅ |
 | US3 — Find and organise secrets | 7/7 | ✅ |
-| US4 — Multiple vaults and sharing | 0/29 | — |
+| US4 — Multiple vaults and sharing | 29/29 | ✅ |
 | US5 — Two-factor authentication | 0/13 | — |
 | US6 — Custom templates | 0/6 | — |
 | US7 — PWA, offline and backup | 0/11 | — |
 
-92 tests pass (52 frontend, 40 backend against a real PostgreSQL).
+151 tests pass (61 frontend, 90 backend against a real PostgreSQL).
 
 ## The design in one diagram
 
@@ -80,7 +80,26 @@ zxcvbn ≥ 3) · Argon2id at 64 MiB · auto-lock · master password change with 
 re-authentication of other devices · four built-in secret types rendered from template rows ·
 masking driven by each field's `sensitive` flag · clipboard copy that clears after 30s ·
 permanent deletion with typed confirmation · client-side search over 5,000 secrets at p95 < 100ms ·
-encrypted folder and tag names with filter chips.
+encrypted folder and tag names with filter chips · multiple vaults · sharing with Owner/Editor/
+Viewer roles · invitations to people who do not have an account yet · immediate revocation with
+resumable re-encryption · an append-only activity log.
+
+### Sharing, and why it is not instant
+
+Sharing a vault means wrapping its key to the recipient's **public** key, in your browser. Neither
+party learns anything about the other's password, and the server carries a wrap it cannot open.
+
+Inviting someone who has **no account yet** therefore cannot grant anything: they have no keypair,
+so no correct wrap exists. The invitation is stored holding no key material of any kind — the table
+has no column that could hold one — and the email names no vault. Once they register, an Owner
+completes it from their own device, because only that device holds the vault key. The interface
+says so rather than reporting "invited" and leaving you to believe access exists.
+
+Revoking a member refuses them **immediately**, before any re-encryption runs. The vault key is then
+replaced and everything re-encrypted in a resumable background job. Mid-rotation the vault holds two
+live key generations and stays fully readable; the old key is destroyed only once every secret,
+folder name, tag name **and the vault's own name** has been rewritten. Rotation bounds what a removed
+member can read in future — it cannot un-read what they already saw.
 
 ## Layout
 
@@ -109,6 +128,10 @@ These are design consequences, documented rather than hidden:
   it next reaches the network.
 - **Key rotation bounds future exposure, not past.** It cannot un-read what a revoked member
   already saw.
+- **Email addresses are not actually verified yet.** The design assumes verification gates access
+  to a shared vault, but the flow that sets the flag is unbuilt (T144) — registration marks every
+  account verified as a stand-in. Until that lands, an address can be claimed without proving
+  control of the mailbox.
 - **Not audited, and not production software.** It is a learning project with real cryptography,
   which is not the same as cryptography anyone has reviewed.
 

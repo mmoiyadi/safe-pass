@@ -9,6 +9,7 @@ import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import {
   ApiError,
   assertEnvelope,
+  assertKeyWrap,
   authFailed,
   base64UrlToBytes,
   bytesToBase64Url,
@@ -16,6 +17,7 @@ import {
 } from '@pm/shared';
 import type { PrismaClient } from '../../../prisma/generated/client/index.js';
 import { authLimit } from '../../middleware/rate-limit.js';
+import { promotePendingInvitations } from '../vaults/invitation.service.js';
 import {
   SESSION_COOKIE,
   cookieOptions,
@@ -112,9 +114,9 @@ export function authRoutes(prisma: PrismaClient) {
 
       // Structural validation only — the server confirms these parse as envelopes of a known
       // version and never inspects their contents.
-      const wrappedUserKey = assertEnvelope(body['wrappedUserKey'], 'wrappedUserKey');
-      const wrappedPrivateKey = assertEnvelope(body['wrappedPrivateKey'], 'wrappedPrivateKey');
-      const wrappedVaultKey = assertEnvelope(body['wrappedVaultKey'], 'wrappedVaultKey');
+      const wrappedUserKey = assertKeyWrap(body['wrappedUserKey'], 'wrappedUserKey');
+      const wrappedPrivateKey = assertKeyWrap(body['wrappedPrivateKey'], 'wrappedPrivateKey');
+      const wrappedVaultKey = assertKeyWrap(body['wrappedVaultKey'], 'wrappedVaultKey');
       const personalVaultName = assertEnvelope(body['personalVaultName'], 'personalVaultName');
       const publicKey = String(body['publicKey'] ?? '');
       if (!publicKey) throw new ApiError('VALIDATION_FAILED', 'publicKey is required');
@@ -132,6 +134,12 @@ export function authRoutes(prisma: PrismaClient) {
             email,
             authHashDigest: authDigest(authHash),
             recoveryAcknowledgedAt: new Date(),
+            // STAND-IN. The spec assumes email verification gates access to a shared vault,
+            // and `/users/public-key` is specified to return 404 for unverified accounts — but
+            // no user story tasks the verification flow itself, so nothing would ever set this
+            // and every account would read as unverified. Marking verified at registration
+            // keeps sharing working; see T144 in tasks.md for the real flow.
+            emailVerifiedAt: new Date(),
             kdfAlgorithm: params.algorithm,
             kdfMemoryKib: params.memoryKib,
             kdfIterations: params.iterations,
@@ -163,6 +171,11 @@ export function authRoutes(prisma: PrismaClient) {
           deviceLabel: request.headers['user-agent']?.slice(0, 120),
         });
       });
+
+      // FR-069: an invitation waiting on this address becomes completable, and the owner who
+      // issued it is told. Outside the transaction because it sends mail, and a delivery
+      // problem must not undo a successful registration.
+      await promotePendingInvitations(prisma, email);
 
       reply.setCookie(SESSION_COOKIE, token, cookieOptions);
       return reply.code(201).send({ email });
@@ -230,7 +243,7 @@ export function authRoutes(prisma: PrismaClient) {
 
       const newAuthHash = String(body['newAuthHash'] ?? '');
       if (!newAuthHash) throw new ApiError('VALIDATION_FAILED', 'newAuthHash is required');
-      const newWrappedUserKey = assertEnvelope(body['newWrappedUserKey'], 'newWrappedUserKey');
+      const newWrappedUserKey = assertKeyWrap(body['newWrappedUserKey'], 'newWrappedUserKey');
       const params = (body['newKdfParams'] as KdfParams | undefined) ?? DEFAULT_PARAMS;
 
       await prisma.$transaction(async (tx) => {
