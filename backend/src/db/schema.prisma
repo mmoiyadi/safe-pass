@@ -1,0 +1,397 @@
+// Data model for the password manager.
+// See specs/001-password-manager/data-model.md.
+//
+// Reading key: fields commented "OPAQUE" are ciphertext envelopes the server stores
+// and can never read. There is no server-side code path that opens one.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../prisma/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VaultKind {
+  personal
+  standard
+}
+
+enum Role {
+  owner
+  editor
+  viewer
+}
+
+enum MembershipStatus {
+  invited
+  active
+  revoked
+}
+
+enum InvitationState {
+  pending
+  ready
+  completed
+  withdrawn
+  expired
+}
+
+enum RotationState {
+  running
+  completed
+  failed
+}
+
+enum KdfAlgorithm {
+  argon2id
+  pbkdf2
+}
+
+enum SignInOutcome {
+  success
+  bad_password
+  bad_totp
+  rate_limited
+}
+
+enum TemplateKind {
+  builtin
+  custom
+}
+
+model User {
+  id                    String       @id @default(uuid())
+  email                 String       @unique
+  emailVerifiedAt       DateTime?
+  /// Server-side Argon2id digest OF THE CLIENT'S AuthHash — never of the master password.
+  authHashDigest        Bytes
+  kdfAlgorithm          KdfAlgorithm @default(argon2id)
+  kdfMemoryKib          Int          @default(65536)
+  kdfIterations         Int          @default(3)
+  kdfParallelism        Int          @default(1)
+  /// Not null — the account cannot exist without the no-recovery acknowledgement (FR-010).
+  recoveryAcknowledgedAt DateTime
+  autoLockMinutes       Int          @default(15)
+  offlineAccessEnabled  Boolean      @default(true)
+  deletionRequestedAt   DateTime?
+  createdAt             DateTime     @default(now())
+
+  keyring        UserKeyring?
+  memberships    VaultMembership[]
+  ownedVaults    Vault[]           @relation("VaultOwner")
+  sessions       Session[]
+  signInEvents   SignInEvent[]
+  totpEnrolment  TotpEnrolment?
+  backupCodes    BackupCode[]
+  templates      Template[]
+  sentInvites    VaultInvitation[] @relation("InvitedBy")
+  startedRotations VaultRotation[]
+  activityActed  ActivityLogEntry[] @relation("Actor")
+
+  @@map("user")
+}
+
+model UserKeyring {
+  userId            String   @id
+  /// OPAQUE — UserKey sealed under the StretchedMasterKey.
+  wrappedUserKey    Bytes
+  /// Plaintext by design; others need it to share with this user.
+  publicKey         Bytes
+  /// OPAQUE — RSA private key (PKCS#8) sealed under the UserKey.
+  wrappedPrivateKey Bytes
+  rotatedAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_keyring")
+}
+
+model Vault {
+  id      String    @id @default(uuid())
+  ownerId String
+  /// OPAQUE — encrypted under the VaultKey. A vault named "Divorce Lawyer" leaks on its own.
+  name    Bytes
+  kind    VaultKind @default(standard)
+  /// Highest live generation. Rows may lag until a rotation closes.
+  keyVersion     Int @default(1)
+  /// Which generation encrypted `name`. Must reach toVersion before a rotation may close.
+  nameKeyVersion Int @default(1)
+  createdAt DateTime @default(now())
+
+  owner       User              @relation("VaultOwner", fields: [ownerId], references: [id])
+  memberships VaultMembership[]
+  secrets     Secret[]
+  folders     Folder[]
+  tags        Tag[]
+  invitations VaultInvitation[]
+  rotations   VaultRotation[]
+  activity    ActivityLogEntry[]
+
+  @@index([ownerId])
+  @@map("vault")
+}
+
+model VaultMembership {
+  id         String           @id @default(uuid())
+  vaultId    String
+  userId     String
+  role       Role
+  status     MembershipStatus @default(invited)
+  invitedBy  String?
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime         @default(now())
+
+  vault    Vault          @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyWraps VaultKeyWrap[]
+
+  @@unique([vaultId, userId])
+  @@index([userId, status])
+  @@map("vault_membership")
+}
+
+/// One row per member per LIVE key generation. This table is what makes resumable
+/// rotation possible: a vault mid-rotation has two generations and members need both.
+model VaultKeyWrap {
+  id           String   @id @default(uuid())
+  membershipId String
+  keyVersion   Int
+  /// OPAQUE — VaultKey sealed to this member's RSA public key, or under the owner's UserKey
+  /// for a personal vault.
+  wrappedVaultKey Bytes
+  createdAt    DateTime @default(now())
+
+  membership VaultMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, keyVersion])
+  @@map("vault_key_wrap")
+}
+
+/// An invitation to an address that may have no account yet.
+/// There is deliberately NO key column here (FR-067): the recipient has no keypair to wrap to.
+model VaultInvitation {
+  id           String          @id @default(uuid())
+  vaultId      String
+  /// NOT a foreign key — the account may not exist.
+  inviteeEmail String
+  role         Role
+  invitedById  String
+  state        InvitationState @default(pending)
+  createdAt    DateTime        @default(now())
+  expiresAt    DateTime
+  completedAt  DateTime?
+  membershipId String?
+
+  vault     Vault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  invitedBy User  @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([inviteeEmail, state])
+  @@map("vault_invitation")
+}
+
+model VaultRotation {
+  id          String        @id @default(uuid())
+  vaultId     String
+  fromVersion Int
+  toVersion   Int
+  state       RotationState @default(running)
+  /// Resume point for the SECRET walk only. Folders, tags, and the vault name are too few
+  /// to need a cursor — they go in one final batch, and the close precondition guarantees them.
+  cursor      String?
+  totalCount  Int           @default(0)
+  doneCount   Int           @default(0)
+  startedById String
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  vault     Vault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  startedBy User  @relation(fields: [startedById], references: [id])
+
+  @@index([vaultId, state])
+  @@map("vault_rotation")
+}
+
+model Secret {
+  id                String   @id @default(uuid())
+  vaultId           String
+  templateVersionId String
+  /// OPAQUE — encrypted; search happens client-side.
+  title             Bytes
+  folderId          String?
+  /// OPAQUE per value — { fieldId: envelope }. JSONB so adding a template field needs no
+  /// migration (Constitution Principle V).
+  fieldValues       Json
+  keyVersion        Int
+  revision          Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // NOTE: there is no deletedAt. Deletion is a real DELETE (FR-053, FR-076) — no trash,
+  // no restore, no purge job.
+
+  vault           Vault           @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  templateVersion TemplateVersion @relation(fields: [templateVersionId], references: [id])
+  folder          Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags            SecretTag[]
+
+  @@index([vaultId])
+  @@index([vaultId, keyVersion, id])
+  @@map("secret")
+}
+
+model Folder {
+  id         String   @id @default(uuid())
+  vaultId    String
+  /// OPAQUE — encrypted under the VaultKey, so it rotates with everything else.
+  name       Bytes
+  keyVersion Int
+  createdAt  DateTime @default(now())
+
+  vault   Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  secrets Secret[]
+
+  @@index([vaultId, keyVersion])
+  @@map("folder")
+}
+
+model Tag {
+  id         String   @id @default(uuid())
+  vaultId    String
+  /// OPAQUE — encrypted under the VaultKey, so it rotates with everything else.
+  name       Bytes
+  keyVersion Int
+  createdAt  DateTime @default(now())
+
+  vault   Vault       @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  secrets SecretTag[]
+
+  @@index([vaultId, keyVersion])
+  @@map("tag")
+}
+
+model SecretTag {
+  secretId String
+  tagId    String
+
+  secret Secret @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([secretId, tagId])
+  @@map("secret_tag")
+}
+
+model Template {
+  id               String       @id @default(uuid())
+  /// Null for built-in templates.
+  ownerId          String?
+  kind             TemplateKind @default(custom)
+  currentVersionId String?
+  createdAt        DateTime     @default(now())
+
+  owner    User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  versions TemplateVersion[]
+
+  @@map("template")
+}
+
+model TemplateVersion {
+  id         String   @id @default(uuid())
+  templateId String
+  version    Int
+  name       String
+  /// Ordered array of { id, label, type, required, sensitive, order }. JSONB so a new field
+  /// type is a row, not a migration (Principle V).
+  fields     Json
+  createdAt  DateTime @default(now())
+
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  secrets  Secret[]
+
+  @@unique([templateId, version])
+  @@map("template_version")
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  userId      String
+  /// SHA-256 of the opaque token. The token itself is never stored.
+  tokenDigest Bytes     @unique
+  deviceLabel String?
+  ipHash      Bytes?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  /// Set on sibling sessions by a master password change. While set, the session guard
+  /// refuses EVERY route except POST /auth/reauth (FR-072, FR-073).
+  reauthRequiredAt DateTime?
+  /// True until the second factor is verified; such a session may fetch only the wrapped seed.
+  pendingTotp Boolean   @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model SignInEvent {
+  id             String        @id @default(uuid())
+  userId         String
+  outcome        SignInOutcome
+  at             DateTime      @default(now())
+  coarseLocation String?
+  deviceLabel    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, at])
+  @@map("sign_in_event")
+}
+
+model TotpEnrolment {
+  userId        String    @id
+  /// OPAQUE — TOTP seed sealed under the UserKey. The server cannot read it, which is why
+  /// verification happens client-side (contracts/README.md).
+  wrappedSecret Bytes
+  confirmedAt   DateTime?
+  /// Rejects replay within the same time step (FR-013).
+  lastUsedStep  BigInt?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("totp_enrolment")
+}
+
+model BackupCode {
+  id         String    @id @default(uuid())
+  userId     String
+  codeDigest Bytes
+  usedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("backup_code")
+}
+
+/// Append-only. Enforced at the database level by REVOKE UPDATE, DELETE — see the migration.
+/// A convention in application code is not an unalterable log (Principle II).
+model ActivityLogEntry {
+  id        String   @id @default(uuid())
+  vaultId   String
+  actorId   String?
+  subjectId String?
+  action    String
+  at        DateTime @default(now())
+  metadata  Json?
+
+  vault Vault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  actor User? @relation("Actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([vaultId, at])
+  @@map("activity_log_entry")
+}

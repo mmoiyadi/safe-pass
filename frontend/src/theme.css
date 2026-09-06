@@ -1,0 +1,34 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbfa;
+  --fg: #1a1a19;
+  --muted: #6b6b68;
+  --border: #e3e3e0;
+  --accent: #2f6f4e;
+  --danger: #a4342a;
+  --warn: #8a6410;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181a;
+    --fg: #ececea;
+    --muted: #9a9a96;
+    --border: #2c2d30;
+    --accent: #6fbf92;
+    --danger: #e0796d;
+    --warn: #d6a944;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* SC-009: every primary task completable at 360px with no horizontal scroll. */
+main { max-width: 46rem; margin: 0 auto; padding: 1rem; }

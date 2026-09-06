@@ -1,0 +1,990 @@
+openapi: 3.1.0
+info:
+  title: Password Manager API
+  version: 1.0.0
+  description: >
+    Zero-knowledge password manager. The server stores and authorizes ciphertext it cannot read.
+    Every field with `format: envelope` is client-encrypted per contracts/crypto-envelope.md.
+    See contracts/README.md for the error model, authorization matrix, and known limitations.
+servers:
+  - url: /api/v1
+
+security:
+  - sessionCookie: []
+
+tags:
+  - name: auth
+  - name: vaults
+  - name: members
+  - name: invitations
+  - name: rotation
+  - name: secrets
+  - name: templates
+  - name: organisation
+  - name: backup
+  - name: security
+
+paths:
+  /auth/kdf-params:
+    post:
+      tags: [auth]
+      summary: Fetch KDF parameters for an email (pre-login)
+      description: >
+        Returns parameters for ANY email, real or not, so the endpoint cannot be used to enumerate
+        accounts (FR-003). For unknown emails, parameters are derived deterministically from the
+        email so they are stable across calls.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: KDF parameters
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KdfParams' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Create an account and its personal vault
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                [email, authHash, kdfParams, wrappedUserKey, publicKey, wrappedPrivateKey,
+                 wrappedPersonalVaultKey, personalVaultName, recoveryAcknowledged]
+              properties:
+                email: { type: string, format: email }
+                authHash:
+                  type: string
+                  description: Argon2id(MasterKey, salt=masterPassword). NEVER the master password itself.
+                kdfParams: { $ref: '#/components/schemas/KdfParams' }
+                wrappedUserKey: { type: string, format: envelope }
+                publicKey: { type: string, description: RSA-4096 SPKI, base64url, not encrypted }
+                wrappedPrivateKey: { type: string, format: envelope }
+                wrappedPersonalVaultKey: { type: string, format: envelope }
+                personalVaultName: { type: string, format: envelope }
+                recoveryAcknowledged:
+                  type: boolean
+                  description: >
+                    MUST be true. The user has been told a forgotten master password means permanent,
+                    irreversible loss of all vault contents (FR-010). Registration is refused otherwise.
+      responses:
+        '201': { description: Account created; verification email sent }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: Email already registered }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Authenticate with the derived auth hash
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, authHash]
+              properties:
+                email: { type: string, format: email }
+                authHash: { type: string }
+                deviceLabel: { type: string }
+      responses:
+        '200':
+          description: >
+            Session established. If TOTP is enrolled, `status` is `totp_pending` and the session may
+            only reach /auth/totp/* until upgraded (see README limitation 1).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [active, totp_pending] }
+                  keyring: { $ref: '#/components/schemas/Keyring' }
+                  newDevice:
+                    type: boolean
+                    description: True if unrecognized; triggers a security notification email.
+        '401':
+          description: >
+            AUTH_FAILED — returned identically for unknown account and wrong password, with a
+            constant-time floor (FR-003).
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/totp/challenge:
+    get:
+      tags: [auth]
+      summary: Fetch the wrapped TOTP seed for client-side verification
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wrappedSecret: { type: string, format: envelope }
+                  step: { type: integer, description: Current 30s step, server clock }
+
+  /auth/totp/verify:
+    post:
+      tags: [auth]
+      summary: Upgrade a totp_pending session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proof, step]
+              properties:
+                proof: { type: string }
+                step: { type: integer }
+                backupCode: { type: string, description: Single-use alternative to a TOTP code (FR-011) }
+      responses:
+        '200': { description: Session upgraded to active }
+        '401': { description: TOTP_INVALID — incorrect, expired, or replayed within the same step }
+
+  /auth/totp/enrol:
+    post:
+      tags: [auth]
+      summary: Enrol an authenticator app
+      description: Requires confirming one valid code before enrolment takes effect (FR-009).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wrappedSecret, confirmationProof]
+              properties:
+                wrappedSecret: { type: string, format: envelope }
+                confirmationProof: { type: string }
+      responses:
+        '201':
+          description: Enrolled; backup codes returned once and never again
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backupCodes: { type: array, items: { type: string } }
+
+  /auth/master-password:
+    put:
+      tags: [auth]
+      summary: Change the master password
+      description: >
+        Requires the CURRENT master password, not merely a valid session (research.md §9) — a stolen
+        session must not be sufficient to cause permanent lockout. Rewraps the UserKey only; no
+        secret is re-encrypted (FR-005).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentAuthHash, newAuthHash, newWrappedUserKey, newKdfParams]
+              properties:
+                currentAuthHash: { type: string }
+                newAuthHash: { type: string }
+                newWrappedUserKey: { type: string, format: envelope }
+                newKdfParams: { $ref: '#/components/schemas/KdfParams' }
+      responses:
+        '204':
+          description: >
+            Changed. Every other session is stamped reauthRequired and will be refused with
+            401 REAUTH_REQUIRED until it calls POST /auth/reauth (FR-072, FR-073). Sessions are not
+            terminated. A notification email is sent.
+        '401': { description: Current master password incorrect }
+
+  /auth/reauth:
+    post:
+      tags: [auth]
+      summary: Clear a session's re-authentication requirement after a master password change
+      description: >
+        The only route a session stamped reauthRequired may call (FR-073). Enforcement is
+        server-side: a client that already unwrapped the UserKey can ignore any client-side prompt,
+        so the session guard refuses every other route regardless of what the client does
+        (research.md §13). The second factor is NOT re-challenged (FR-074).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [authHash]
+              properties:
+                authHash:
+                  type: string
+                  description: AuthHash derived from the NEW master password.
+      responses:
+        '200':
+          description: Flag cleared; the rewrapped keyring is returned so the client can rebuild its key chain.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Keyring' }
+        '401': { description: AUTH_FAILED — the AuthHash does not match the new master password }
+
+  /auth/sessions:
+    get:
+      tags: [auth]
+      summary: List active sessions (FR-008)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Session' } }
+    delete:
+      tags: [auth]
+      summary: Revoke all sessions except the current one
+      responses:
+        '204': { description: Revoked }
+
+  /vaults:
+    get:
+      tags: [vaults]
+      summary: List vaults the caller is an active member of
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Vault' } }
+    post:
+      tags: [vaults]
+      summary: Create a vault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, wrappedVaultKey]
+              properties:
+                name: { type: string, format: envelope }
+                wrappedVaultKey: { type: string, format: envelope }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vault' }
+
+  /vaults/{vaultId}:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    delete:
+      tags: [vaults]
+      summary: Delete a vault (Owner only)
+      parameters:
+        - name: confirmAffectsMembers
+          in: query
+          schema: { type: boolean }
+          description: Required true when other members remain (FR-021).
+      responses:
+        '204': { description: Deleted }
+        '403': { description: ROLE_INSUFFICIENT, or the vault is the personal vault }
+        '409': { description: Other members remain and confirmation was not given }
+
+  /vaults/{vaultId}/members:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    get:
+      tags: [members]
+      summary: List members (Owner only)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Membership' } }
+    post:
+      tags: [members]
+      summary: Invite an address to the vault (Owner only)
+      description: >
+        Two outcomes, and the caller cannot tell which in advance without leaking whether the address
+        has an account. The client therefore first calls GET /users/public-key: if a key comes back it
+        wraps the VaultKey and sends `wrappedVaultKey`, producing a membership directly. If not, it
+        omits the field and the server records a PENDING INVITATION carrying no key material at all
+        (FR-066, FR-067) — see research.md §12.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [owner, editor, viewer] }
+                wrappedVaultKey:
+                  type: string
+                  format: envelope
+                  description: >
+                    VaultKey sealed to the invitee's RSA public key by the inviting client. Omit when
+                    the address has no account; the server MUST reject any attempt to supply
+                    substitute key material for a pending invitation (FR-067).
+      responses:
+        '201':
+          description: Membership created in `invited` state (the address had an account).
+        '202':
+          description: >
+            Pending invitation recorded. Grants nothing and holds no key material. Completion needs
+            an Owner to act after the recipient registers (FR-068).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invitation' }
+        '409': { description: INVITATION_EXISTS — a live invitation or active membership already covers this address }
+
+  /vaults/{vaultId}/invitations:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    get:
+      tags: [invitations]
+      summary: List live invitations for this vault (Owner only)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Invitation' } }
+
+  /vaults/{vaultId}/invitations/{invitationId}:
+    parameters:
+      - { $ref: '#/components/parameters/VaultId' }
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [invitations]
+      summary: Withdraw a pending invitation (Owner only, FR-070)
+      responses:
+        '204': { description: Withdrawn; recorded in the activity log }
+
+  /vaults/{vaultId}/invitations/{invitationId}/complete:
+    parameters:
+      - { $ref: '#/components/parameters/VaultId' }
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [invitations]
+      summary: Complete a ready invitation by wrapping the VaultKey to the now-registered recipient
+      description: >
+        Callable only by an Owner whose device holds the unwrapped VaultKey — the server cannot
+        perform this wrap, which is why access is not immediate (FR-068, FR-069). Creates a
+        VaultMembership in `invited` state; the recipient still accepts to become active.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wrappedVaultKey, keyVersion]
+              properties:
+                wrappedVaultKey: { type: string, format: envelope }
+                keyVersion: { type: integer, description: Must equal the vault's current keyVersion. }
+      responses:
+        '201': { description: Membership created; invitation marked completed }
+        '409':
+          description: >
+            INVITATION_NOT_READY (the recipient has no account yet) or KEY_VERSION_STALE (a rotation
+            intervened; re-read and retry).
+
+  /invitations:
+    get:
+      tags: [invitations]
+      summary: Invitations addressed to the calling user
+      description: >
+        Discloses no vault name, size, or member list — only that an invitation exists and who sent
+        it (FR-066).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Invitation' } }
+
+  /users/public-key:
+    get:
+      tags: [members]
+      summary: Fetch a user's RSA public key by email, to wrap a VaultKey to them
+      description: >
+        Public by design — a public key is not secret and is required to share. Rate limited, and
+        returns 404 for both "no such account" and "not yet verified" so it cannot be used to
+        enumerate accounts (FR-003, FR-027).
+      parameters:
+        - { name: email, in: query, required: true, schema: { type: string, format: email } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey: { type: string, description: RSA-4096 SPKI, base64url. }
+        '404': { description: NOT_FOUND — no verified account. Indistinguishable from non-existence }
+        '429': { description: RATE_LIMITED }
+
+  /vaults/{vaultId}/members/{userId}:
+    parameters:
+      - { $ref: '#/components/parameters/VaultId' }
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [members]
+      summary: Change a member's role (Owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [owner, editor, viewer] }
+      responses:
+        '204': { description: Changed; recorded in the activity log (FR-034) }
+        '409': { description: LAST_OWNER — would leave the vault without an owner (FR-028) }
+    delete:
+      tags: [members]
+      summary: Revoke a member
+      description: >
+        Removes access immediately, then requires the caller to complete key rotation via
+        POST /vaults/{vaultId}/rotate. Until rotation completes the vault is flagged
+        `rotationPending` (research.md §5).
+      responses:
+        '204': { description: Revoked; rotation required }
+        '409': { description: LAST_OWNER }
+
+  /vaults/{vaultId}/rotation:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    get:
+      tags: [rotation]
+      summary: Current rotation job state, for the progress indicator and for resuming
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rotation' }
+        '404': { description: No rotation in progress }
+    post:
+      tags: [rotation]
+      summary: Open a rotation — install a new VaultKey generation alongside the old one
+      description: >
+        Does NOT re-encrypt anything. It registers generation v+1 and stores a wrap of it for every
+        remaining active member, leaving the v wraps in place so the vault stays fully readable while
+        re-encryption proceeds in batches (FR-082, FR-083, research.md §11).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toVersion, memberKeys]
+              properties:
+                toVersion: { type: integer }
+                memberKeys:
+                  type: array
+                  description: One wrap of the NEW VaultKey per remaining active member.
+                  items:
+                    type: object
+                    properties:
+                      userId: { type: string, format: uuid }
+                      wrappedVaultKey: { type: string, format: envelope }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rotation' }
+        '409': { description: ROTATION_IN_PROGRESS — only one rotation may be open at a time }
+
+  /vaults/{vaultId}/rotation/batch:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    post:
+      tags: [rotation]
+      summary: Submit one re-encrypted batch and advance the cursor
+      description: >
+        Each batch is a single transaction. An interrupted rotation resumes from `cursor` rather than
+        rolling back, so no work is lost and the vault is never partly unreadable (FR-083).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toVersion]
+              description: >
+                At least one of secrets, folders, tags, or vaultName must be present. All four are
+                encrypted under the VaultKey and all four must reach toVersion before the rotation
+                can close.
+              properties:
+                toVersion: { type: integer }
+                secrets:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      title: { type: string, format: envelope }
+                      fieldValues: { type: object, additionalProperties: { type: string, format: envelope } }
+                folders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string, format: envelope }
+                tags:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string, format: envelope }
+                vaultName:
+                  type: string
+                  format: envelope
+                  description: The vault's own name, re-encrypted. Sent once, not per batch.
+      responses:
+        '200':
+          description: Batch applied; updated cursor and progress returned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rotation' }
+        '409': { description: KEY_VERSION_STALE — re-read the rotation and resume from its cursor }
+
+  /vaults/{vaultId}/rotation/close:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    post:
+      tags: [rotation]
+      summary: Close a completed rotation and destroy the previous generation
+      description: >
+        Refused unless NO secret, folder, tag, or vault name in the vault still references
+        `fromVersion` — all four are encrypted under the VaultKey and all four must have been
+        rewritten. On success every VaultKeyWrap at the old generation is deleted, which is the point
+        at which the revoked member's copy of the old key stops opening anything (FR-084). Closing
+        while any of the four still reads `fromVersion` destroys the only key that can open it.
+      responses:
+        '204': { description: Closed; old generation destroyed; recorded in the activity log }
+        '409': { description: ROTATION_IN_PROGRESS — secrets, folders, tags, or the vault name remain at the old generation }
+
+  /vaults/{vaultId}/secrets:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    get:
+      tags: [secrets]
+      summary: List all secrets in the vault as ciphertext
+      description: >
+        Returns the full set for client-side indexing and search (research.md §4). There is no
+        server-side search endpoint because the server cannot read titles or values.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Secret' } }
+    post:
+      tags: [secrets]
+      summary: Create a secret (Owner or Editor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SecretWrite' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Secret' }
+        '403': { description: ROLE_INSUFFICIENT — a Viewer may not write (SC-012) }
+
+  /vaults/{vaultId}/secrets/{secretId}:
+    parameters:
+      - { $ref: '#/components/parameters/VaultId' }
+      - { name: secretId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [secrets]
+      summary: Update a secret with optimistic concurrency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/SecretWrite' }
+                - type: object
+                  required: [revision]
+                  properties:
+                    revision: { type: integer }
+      responses:
+        '200': { description: Updated }
+        '409':
+          description: >
+            REVISION_CONFLICT — another member saved first. The current row is returned so the client
+            can present a merge rather than silently discarding either edit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Secret' }
+    delete:
+      tags: [secrets]
+      summary: Soft-delete a secret (recoverable for 30 days, FR-046)
+      responses:
+        '204': { description: Deleted }
+
+  /vaults/{vaultId}/folders:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    post:
+      tags: [organisation]
+      summary: Create a folder (encrypted name)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, format: envelope }
+      responses:
+        '201': { description: Created }
+
+  /vaults/{vaultId}/folders/{folderId}:
+    parameters:
+      - { $ref: '#/components/parameters/VaultId' }
+      - { name: folderId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [organisation]
+      summary: Delete a folder
+      parameters:
+        - name: disposition
+          in: query
+          required: true
+          schema: { type: string, enum: [orphan, cascade] }
+          description: >
+            Explicitly required so contained secrets are never silently destroyed (FR-041). `orphan`
+            moves them to no folder; `cascade` soft-deletes them.
+      responses:
+        '204': { description: Deleted }
+
+  /templates:
+    get:
+      tags: [templates]
+      summary: List built-in and owned custom templates with their current versions
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/TemplateVersion' } }
+    post:
+      tags: [templates]
+      summary: Create a custom template
+      description: Adding a secret type is a row, never a migration (Principle V).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, fields]
+              properties:
+                name: { type: string }
+                fields: { type: array, items: { $ref: '#/components/schemas/TemplateField' } }
+      responses:
+        '201': { description: Created }
+        '422': { description: TEMPLATE_FIELD_DUPLICATE — duplicate field labels (FR-036) }
+
+  /templates/{templateId}/versions:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [templates]
+      summary: Publish a new template version
+      description: >
+        Prior versions are retained so existing secrets stay readable (FR-033). Removing a field
+        requires acknowledgeDataLoss=true (FR-035).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields]
+              properties:
+                fields: { type: array, items: { $ref: '#/components/schemas/TemplateField' } }
+                acknowledgeDataLoss: { type: boolean }
+      responses:
+        '201': { description: Version published }
+        '422': { description: TEMPLATE_FIELD_IN_USE — field removal not acknowledged }
+
+  /vaults/{vaultId}/export:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    post:
+      tags: [backup]
+      summary: Export an encrypted backup (Owner only)
+      description: >
+        Returns ciphertext exactly as stored. There is no plaintext export (FR-061). Recorded in the
+        vault activity log and notified by email (FR-065).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VaultBackup' }
+        '403': { description: ROLE_INSUFFICIENT }
+
+  /vaults/import:
+    post:
+      tags: [backup]
+      summary: Restore a vault from an encrypted backup (FR-063)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VaultBackup' }
+      responses:
+        '201': { description: Vault restored }
+
+  /security/sign-ins:
+    get:
+      tags: [security]
+      summary: Sign-in history, 90-day retention (research.md §9)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    at: { type: string, format: date-time }
+                    outcome: { type: string, enum: [success, bad_password, bad_totp, rate_limited] }
+                    deviceLabel: { type: string }
+                    coarseLocation: { type: string }
+
+  /vaults/{vaultId}/activity:
+    parameters: [{ $ref: '#/components/parameters/VaultId' }]
+    get:
+      tags: [security]
+      summary: Append-only activity log for a shared vault (Owner only, FR-025)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    at: { type: string, format: date-time }
+                    actorId: { type: string, format: uuid }
+                    subjectId: { type: string, format: uuid }
+                    action:
+                      type: string
+                      enum: [invited, accepted, declined, revoked, role_changed, key_rotated,
+                             exported, vault_created, vault_deleted]
+
+  /account:
+    delete:
+      tags: [security]
+      summary: Request account deletion (30-day purge, research.md §8)
+      responses:
+        '202': { description: Deletion scheduled }
+
+  /account/personal-data:
+    get:
+      tags: [security]
+      summary: Export personal data — metadata only, distinct from a vault backup (research.md §8)
+      responses:
+        '200': { description: Machine-readable JSON of account metadata }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: pm_session
+
+  parameters:
+    VaultId:
+      name: vaultId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: VALIDATION_FAILED or ENVELOPE_MALFORMED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: RATE_LIMITED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }
+
+    KdfParams:
+      type: object
+      properties:
+        algorithm: { type: string, enum: [argon2id, pbkdf2] }
+        memoryKib: { type: integer, example: 65536 }
+        iterations: { type: integer, example: 3 }
+        parallelism: { type: integer, example: 1 }
+
+    Keyring:
+      type: object
+      description: Wrapped key material. Useless without the master password.
+      properties:
+        wrappedUserKey: { type: string, format: envelope }
+        wrappedPrivateKey: { type: string, format: envelope }
+        publicKey: { type: string }
+
+    Session:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        deviceLabel: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        current: { type: boolean }
+        reauthRequired:
+          type: boolean
+          description: >
+            True after a master password change on another device. While true the server refuses
+            every route except POST /auth/reauth (FR-073).
+
+    Vault:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, format: envelope }
+        kind: { type: string, enum: [personal, standard] }
+        role: { type: string, enum: [owner, editor, viewer] }
+        keyVersion: { type: integer }
+        wrappedVaultKey: { type: string, format: envelope }
+        rotationPending: { type: boolean }
+
+    Membership:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, editor, viewer] }
+        status: { type: string, enum: [invited, active, revoked] }
+        keyVersions:
+          type: array
+          items: { type: integer }
+          description: >
+            Every VaultKey generation this member holds a wrap for. Normally one; two while a
+            rotation is open (research.md §11).
+
+    Invitation:
+      type: object
+      description: >
+        Carries NO key material by design — while pending, the recipient may have no keypair to wrap
+        to (FR-067).
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        inviteeEmail: { type: string, format: email }
+        role: { type: string, enum: [owner, editor, viewer] }
+        state: { type: string, enum: [pending, ready, completed, withdrawn, expired] }
+        invitedByEmail: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    Rotation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        fromVersion: { type: integer }
+        toVersion: { type: integer }
+        state: { type: string, enum: [running, completed, failed] }
+        cursor:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            Last re-encrypted secret id, in stable id order — the resume point for the secret walk
+            (FR-083). Folders, tags, and the vault name are not cursored; they are rewritten in one
+            final batch, and rotation/close is what guarantees they were.
+        totalCount: { type: integer }
+        doneCount: { type: integer }
+        startedAt: { type: string, format: date-time }
+
+    SecretWrite:
+      type: object
+      required: [title, templateVersionId, fieldValues]
+      properties:
+        title: { type: string, format: envelope }
+        templateVersionId: { type: string, format: uuid }
+        folderId: { type: string, format: uuid, nullable: true }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        fieldValues:
+          type: object
+          description: Map of fieldId to value. Sensitive fields are envelopes; others are plain.
+          additionalProperties: true
+
+    Secret:
+      allOf:
+        - { $ref: '#/components/schemas/SecretWrite' }
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            vaultId: { type: string, format: uuid }
+            keyVersion: { type: integer }
+            revision: { type: integer }
+            updatedAt: { type: string, format: date-time }
+            deletedAt: { type: string, format: date-time, nullable: true }
+
+    TemplateField:
+      type: object
+      required: [id, label, type, required, sensitive, order]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        type:
+          type: string
+          enum: [text, password, email, url, number, date, totp, multiline]
+        required: { type: boolean }
+        sensitive:
+          type: boolean
+          description: Drives encryption and masking. Which fields are secret is data, not code.
+        order: { type: integer }
+
+    TemplateVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        templateId: { type: string, format: uuid }
+        version: { type: integer }
+        name: { type: string }
+        kind: { type: string, enum: [builtin, custom] }
+        fields: { type: array, items: { $ref: '#/components/schemas/TemplateField' } }
+
+    VaultBackup:
+      type: object
+      description: >
+        Readable only with the master password in force when it was taken (FR-064). Contains no key
+        material derivable without that password.
+      properties:
+        formatVersion: { type: integer, example: 1 }
+        takenAt: { type: string, format: date-time }
+        kdfParams: { $ref: '#/components/schemas/KdfParams' }
+        wrappedVaultKey: { type: string, format: envelope }
+        vaultName: { type: string, format: envelope }
+        templateVersions: { type: array, items: { $ref: '#/components/schemas/TemplateVersion' } }
+        folders: { type: array, items: { type: object } }
+        tags: { type: array, items: { type: object } }
+        secrets: { type: array, items: { $ref: '#/components/schemas/Secret' } }
