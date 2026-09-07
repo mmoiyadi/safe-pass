@@ -1,0 +1,154 @@
+/* ------------------------------------------------------------------ *
+ * Workbench redesign — drop-in replacement for frontend/src/theme.css
+ *
+ * Two things happen here, deliberately in one file:
+ *
+ * 1. The Organic design-system tokens are declared (--color-*, --font-*,
+ *    --space-*, --radius-*, --shadow-*). New UI is written against these.
+ *
+ * 2. The app's EXISTING variable names (--bg, --fg, --muted, --border,
+ *    --accent, --danger, --warn) are re-pointed at Organic values, so every
+ *    component not yet rewritten keeps working and immediately looks warmer
+ *    instead of looking broken. Delete each alias once nothing reads it.
+ *
+ * The dark-scheme block is removed on purpose: Organic is a single warm
+ * light theme. `color-scheme: light` stops the browser painting form
+ * controls and scrollbars dark on a cream page.
+ * ------------------------------------------------------------------ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+
+  /* — Organic: roles — */
+  --color-bg: #f5ead8;
+  --color-surface: #ebddc5;
+  --color-text: #201e1d;
+  --color-accent: #c67139;
+  --color-accent-2: #7a8a5e;
+  --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
+
+  /* — Organic: neutral ramp — */
+  --color-neutral-100: #f9f4ed;
+  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  /* — Organic: accent (terracotta) ramp — */
+  --color-accent-100: #fff2eb;
+  --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;
+  --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  /* — Organic: second accent (sage) ramp — */
+  --color-accent-2-100: #f0fae1;
+  --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
+  --color-accent-2-700: #56633f;
+  --color-accent-2-800: #3d472b;
+  --color-accent-2-900: #272e1b;
+
+  --font-heading: 'Caprasimo', system-ui, sans-serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+
+  --space-1: 4.4px;
+  --space-2: 8.8px;
+  --space-3: 13.2px;
+  --space-4: 17.6px;
+  --space-6: 26.4px;
+  --space-8: 35.2px;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+
+  /* — Legacy aliases. Remove one at a time as components are rewritten. — */
+  --bg: var(--color-bg);
+  --fg: var(--color-text);
+  --muted: var(--color-neutral-700);
+  --border: var(--color-neutral-300);
+  --accent: var(--color-accent);
+  /* No red in Organic: destructive weight comes from the deep terracotta step.
+     It reads as "careful" against the cream ground and still clears 4.5:1. */
+  --danger: var(--color-accent-700);
+  --warn: var(--color-accent-600);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 15px/1.55 var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+h1 { font-size: 42px; }
+h2 { font-size: 32px; }
+h3 { font-size: 25px; }
+h4 { font-size: 20px; }
+
+/* The workbench fills the window; the old 46rem column no longer applies.
+   Screens that are still a single centred column (unlock, register, forgot,
+   TOTP, verify landing, reauth) opt back in with `.column`. */
+main { margin: 0; padding: 0; }
+.column { max-width: 34rem; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+
+a { color: var(--color-accent-700); text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-600); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+[disabled] { opacity: 0.45; }
+
+/* ------------------------------------------------------------------ *
+ * Narrow screens (keeps the existing 360px guarantees, FR-051)
+ * ------------------------------------------------------------------ */
+
+html, body { max-width: 100%; overflow-x: hidden; }
+
+main, main p, main li, main dd, main code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+input, select, textarea, button { max-width: 100%; font: inherit; }
+pre { overflow-x: auto; max-width: 100%; }
+
+@media (max-width: 30rem) {
+  .column { padding: var(--space-4) var(--space-3); }
+  main dl { grid-template-columns: 1fr !important; }
+  main dd { margin-inline-start: 0; }
+  main button, main input[type='checkbox'] { min-height: 44px; }
+  main input[type='checkbox'] { min-width: 1.15rem; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 24px; }
+  h3 { font-size: 20px; }
+}

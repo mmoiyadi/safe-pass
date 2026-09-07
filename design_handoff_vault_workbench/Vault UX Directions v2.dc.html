@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/organic-41fde5a4-c06f-49a1-8a24-3fe93d380b90/styles.css">
+<script src="_ds/organic-41fde5a4-c06f-49a1-8a24-3fe93d380b90/_ds_bundle.js"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { margin: 0; background: var(--color-neutral-300); }
+  .lucide { stroke-width: 2.75; }
+  a { color: var(--color-accent-700); }
+  a:hover { color: var(--color-accent-600); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:32px; padding:56px">
+  <div style="display:flex; align-items:flex-start; gap:24px; flex-wrap:wrap; max-width:1500px">
+    <div>
+      <h2 style="margin:0 0 8px">Two directions, on the current build</h2>
+      <p style="margin:0; font-size:16px; max-width:760px; color:var(--color-neutral-700)">Both keep every capability the app has today — multiple vaults, template-driven fields, custom fields, folder and tag filing, sharing with key rotation, offline read-only sessions, six account settings panels. They differ in where structure lives: <a href="#2a">2a</a> keeps it permanently on screen, <a href="#2b">2b</a> hides it behind search and opens things over the list.</p>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:64px; flex-wrap:wrap; align-items:flex-start">
+
+    <!-- ══════════ 2a ══════════ -->
+    <div id="2a" style="display:flex; flex-direction:column; gap:24px">
+      <div style="display:flex; align-items:flex-start; gap:14px">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:36px; height:36px; padding:0 13px; border-radius:999px; background:var(--color-accent); color:#fff; font-family:var(--font-heading); font-size:16px">2a</span>
+        <div style="max-width:640px">
+          <h3 style="margin:0 0 4px">Workbench</h3>
+          <p style="margin:0; font-size:15px; color:var(--color-neutral-700)">One rail holds the whole vault hierarchy, so vault, folder and tag are always answerable at a glance. The list becomes one line per secret; fields live in a detail pane instead of being dumped into every row. Settings gets its own panel index rather than one long scroll.</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap">
+
+        <!-- A1 unlock -->
+        <div data-screen-label="2a Unlock" style="width:560px; height:640px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); display:flex; background:var(--color-bg)">
+          <div style="width:210px; background:var(--color-accent-2-800); padding:36px 26px; display:flex; flex-direction:column; justify-content:space-between; color:var(--color-accent-2-100)">
+            <div style="width:46px; height:46px; border-radius:999px; background:var(--color-accent); display:flex; align-items:center; justify-content:center; color:#fff"><i data-lucide="shield" style="width:23px;height:23px"></i></div>
+            <div>
+              <div style="font-family:var(--font-heading); font-size:27px; line-height:1.12">Only you hold the key.</div>
+              <div style="font-size:13px; line-height:1.5; margin-top:14px; color:var(--color-accent-2-300)">Your master password is used here, in this browser, and never sent. The server holds ciphertext it cannot open — so there is no recovery path.</div>
+            </div>
+          </div>
+          <div style="flex:1; padding:44px 34px; display:flex; flex-direction:column; justify-content:center">
+            <h3 style="margin:0 0 22px">Unlock your vault</h3>
+            <label style="display:block; font-size:13px; font-weight:600; color:var(--color-neutral-700); margin-bottom:6px">Email address</label>
+            <input type="email" value="ada@calder.studio" readonly style="font:inherit; font-size:15px; padding:12px 18px; border:1px solid var(--color-neutral-300); border-radius:999px; background:var(--color-neutral-100); color:var(--color-text); width:100%">
+            <label style="display:block; font-size:13px; font-weight:600; color:var(--color-neutral-700); margin:18px 0 6px">Master password</label>
+            <input type="password" value="passwordvalue" readonly style="font:inherit; font-size:15px; padding:12px 18px; border:1px solid var(--color-neutral-300); border-radius:999px; background:var(--color-neutral-100); color:var(--color-text); width:100%">
+            <button type="button" style="margin-top:24px; font-family:var(--font-heading); font-size:15px; padding:14px 22px; border:none; border-radius:999px; background:var(--color-accent); color:#fff; cursor:pointer; width:100%" style-hover="background:var(--color-accent-600)">Deriving your key…</button>
+            <div style="display:flex; gap:9px; margin-top:14px; font-size:12.5px; line-height:1.45; color:var(--color-neutral-700)">
+              <i data-lucide="hourglass" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"></i>
+              <span>This takes a moment on purpose. A slow derivation is what makes guessing your password expensive.</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:20px; padding:10px 14px; border-radius:var(--radius-md); background:var(--color-accent-2-200); font-size:12.5px; color:var(--color-accent-2-800)">
+              <i data-lucide="cloud-off" style="width:15px;height:15px;flex-shrink:0"></i>
+              <span>This device has an encrypted copy — you can unlock offline.</span>
+            </div>
+            <div style="display:flex; gap:18px; margin-top:26px; font-size:13.5px">
+              <a href="#2a" style="font-weight:600">Create a new vault</a>
+              <a href="#2a" style="color:var(--color-neutral-700)">Forgotten password</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- A2 vault -->
+        <div data-screen-label="2a Vault" style="width:1360px; height:880px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); display:flex; padding:16px; gap:16px">
+
+          <aside style="width:262px; background:var(--color-surface); border-radius:var(--radius-lg); padding:22px 16px; display:flex; flex-direction:column; gap:20px; flex-shrink:0">
+            <div style="display:flex; align-items:center; gap:10px; padding:0 8px">
+              <span style="width:32px; height:32px; border-radius:999px; background:var(--color-accent); color:#fff; display:flex; align-items:center; justify-content:center"><i data-lucide="shield" style="width:17px;height:17px"></i></span>
+              <span style="font-family:var(--font-heading); font-size:19px">Keyhouse</span>
+            </div>
+
+            <div>
+              <div style="font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700; padding:0 12px 8px">Vault</div>
+              <sc-for list="{{ vaults }}" as="v" hint-placeholder-count="2">
+                <div onClick="{{ v.select }}" style="{{ v.rowStyle }}">
+                  <span style="display:flex; align-items:center; gap:9px; min-width:0">
+                    <i data-lucide="{{ v.icon }}" style="width:16px;height:16px;flex-shrink:0"></i>
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ v.name }}</span>
+                  </span>
+                  <sc-if value="{{ v.rotating }}" hint-placeholder-val="{{ false }}">
+                    <span title="Re-encrypting after a revocation" style="display:flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); font-size:11px; font-weight:700; flex-shrink:0"><i data-lucide="refresh-cw" style="width:11px;height:11px"></i>62%</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <div style="display:flex; align-items:center; gap:9px; padding:9px 12px; border-radius:999px; font-size:13.5px; color:var(--color-neutral-700); cursor:pointer" style-hover="background:var(--color-neutral-100)"><i data-lucide="plus" style="width:15px;height:15px"></i>New vault</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <sc-for list="{{ scopes }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; border-radius:999px; font-size:14px; font-weight:600; cursor:pointer" style-hover="background:var(--color-neutral-100)">
+                  <span style="display:flex; align-items:center; gap:9px"><i data-lucide="{{ s.icon }}" style="width:16px;height:16px"></i>{{ s.label }}</span>
+                  <span style="font-size:12px; color:var(--color-neutral-600); font-weight:700">{{ s.count }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:0 12px 8px">
+                <span style="font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700">Folders</span>
+                <a href="#2a" style="font-size:12px; font-weight:600; text-decoration:none">Manage</a>
+              </div>
+              <sc-for list="{{ folders }}" as="f" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border-radius:999px; font-size:13.5px; cursor:pointer" style-hover="background:var(--color-neutral-100)">
+                  <span style="display:flex; align-items:center; gap:9px"><i data-lucide="folder" style="width:15px;height:15px"></i>{{ f.name }}</span>
+                  <span style="font-size:12px; color:var(--color-neutral-600)">{{ f.count }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div>
+              <div style="font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700; padding:0 12px 8px">Tags <span style="text-transform:none; letter-spacing:0; font-weight:400">— narrow together</span></div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; padding:0 8px">
+                <sc-for list="{{ tags }}" as="t" hint-placeholder-count="4">
+                  <span style="{{ t.chipStyle }}">{{ t.name }} <span style="opacity:0.6">{{ t.count }}</span></span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px">
+              <div style="display:flex; align-items:center; gap:8px; padding:7px 11px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); font-size:12.5px; font-weight:600">
+                <i data-lucide="timer" style="width:14px;height:14px"></i>Locks in 12:40
+              </div>
+              <div style="display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:999px; background:var(--color-neutral-100)">
+                <span style="width:26px; height:26px; border-radius:999px; background:var(--color-accent-2-500); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0">A</span>
+                <span style="font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">ada@calder.studio</span>
+              </div>
+              <div style="display:flex; gap:6px">
+                <button type="button" style="flex:1; font:inherit; font-size:13px; font-weight:600; padding:9px 12px; border-radius:999px; border:1px solid var(--color-neutral-300); background:transparent; color:var(--color-text); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px" style-hover="background:var(--color-neutral-100)"><i data-lucide="settings" style="width:14px;height:14px"></i>Settings</button>
+                <button type="button" style="font:inherit; font-size:13px; font-weight:600; padding:9px 15px; border-radius:999px; border:none; background:var(--color-accent-2-800); color:var(--color-accent-2-100); cursor:pointer; display:flex; align-items:center; gap:6px" style-hover="background:var(--color-accent-2-900)"><i data-lucide="lock" style="width:14px;height:14px"></i>Lock</button>
+              </div>
+            </div>
+          </aside>
+
+          <div style="width:352px; display:flex; flex-direction:column; gap:12px; flex-shrink:0">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 18px; border-radius:999px; background:var(--color-neutral-100); border:1px solid var(--color-neutral-300)">
+              <i data-lucide="search" style="width:16px;height:16px; color:var(--color-neutral-600)"></i>
+              <span style="flex:1; font-size:14px; color:var(--color-neutral-600)">Search titles, folders, tags</span>
+              <span style="padding:1px 7px; border-radius:6px; background:var(--color-neutral-200); font-size:11.5px; font-weight:700; color:var(--color-neutral-700)">/</span>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:0 8px">
+              <span style="font-size:12.5px; color:var(--color-neutral-700)">24 secrets · searched on this device</span>
+              <span style="font-size:12.5px; color:var(--color-neutral-700); display:flex; align-items:center; gap:5px; cursor:pointer">Title A–Z <i data-lucide="chevron-down" style="width:13px;height:13px"></i></span>
+            </div>
+            <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; gap:3px">
+              <sc-for list="{{ listA }}" as="item" hint-placeholder-count="9">
+                <div onClick="{{ item.select }}" style="{{ item.rowStyle }}">
+                  <span style="{{ item.avatarStyle }}">{{ item.initial }}</span>
+                  <span style="display:flex; flex-direction:column; gap:1px; min-width:0; flex:1">
+                    <span style="font-size:14.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.title }}</span>
+                    <span style="font-size:12.5px; color:var(--color-neutral-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.sub }}</span>
+                  </span>
+                  <span title="Copy password" style="width:32px; height:32px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-600); flex-shrink:0" style-hover="background:var(--color-neutral-200)"><i data-lucide="copy" style="width:15px;height:15px"></i></span>
+                </div>
+              </sc-for>
+            </div>
+            <button type="button" style="font-family:var(--font-heading); font-size:15px; padding:13px; border-radius:999px; border:none; background:var(--color-accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px" style-hover="background:var(--color-accent-600)"><i data-lucide="plus" style="width:17px;height:17px"></i>New secret</button>
+          </div>
+
+          <div style="flex:1; background:var(--color-neutral-100); border-radius:var(--radius-lg); padding:30px 32px; display:flex; flex-direction:column; gap:22px; min-width:0">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px">
+              <div style="min-width:0">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap">
+                  <span style="padding:3px 11px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); font-size:12px; font-weight:700">{{ detailA.template }}</span>
+                  <span style="display:flex; align-items:center; gap:5px; padding:3px 11px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); font-size:12px; font-weight:600"><i data-lucide="folder" style="width:12px;height:12px"></i>{{ detailA.folder }}</span>
+                  <sc-for list="{{ detailA.tags }}" as="t" hint-placeholder-count="2">
+                    <span style="padding:3px 11px; border-radius:999px; border:1px solid var(--color-neutral-300); font-size:12px; color:var(--color-neutral-700)">{{ t }}</span>
+                  </sc-for>
+                </div>
+                <h3 style="margin:0">{{ detailA.title }}</h3>
+              </div>
+              <div style="display:flex; gap:8px; flex-shrink:0">
+                <button type="button" style="font:inherit; font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--color-neutral-300); background:transparent; color:var(--color-text); cursor:pointer; display:flex; align-items:center; gap:7px" style-hover="background:var(--color-neutral-200)"><i data-lucide="pencil" style="width:14px;height:14px"></i>Edit</button>
+                <button type="button" title="Delete" style="font:inherit; width:36px; height:36px; border-radius:999px; border:1px solid var(--color-neutral-300); background:transparent; color:var(--color-accent-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-accent-200)"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <sc-for list="{{ fieldsA }}" as="f" hint-placeholder-count="5">
+                <div style="display:grid; grid-template-columns:132px minmax(0,1fr) auto; align-items:center; gap:16px; padding:13px 14px; border-radius:var(--radius-md)" style-hover="background:var(--color-neutral-200)">
+                  <span style="font-size:13px; font-weight:600; color:var(--color-neutral-700)">{{ f.label }}</span>
+                  <span style="{{ f.valueStyle }}">{{ f.display }}</span>
+                  <span style="display:flex; gap:4px">
+                    <sc-if value="{{ f.sensitive }}" hint-placeholder-val="{{ true }}">
+                      <button type="button" onClick="{{ f.toggle }}" title="Reveal" style="width:32px; height:32px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-300)"><i data-lucide="{{ f.eye }}" style="width:15px;height:15px"></i></button>
+                    </sc-if>
+                    <button type="button" title="Copy" style="width:32px; height:32px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-300)"><i data-lucide="copy" style="width:15px;height:15px"></i></button>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ hasCustomA }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700; padding:0 14px 6px">Your own fields</div>
+                <div style="display:flex; flex-direction:column; gap:2px">
+                  <sc-for list="{{ customA }}" as="f" hint-placeholder-count="2">
+                    <div style="display:grid; grid-template-columns:132px minmax(0,1fr) auto; align-items:center; gap:16px; padding:11px 14px; border-radius:var(--radius-md)" style-hover="background:var(--color-neutral-200)">
+                      <span style="font-size:13px; font-weight:600; color:var(--color-neutral-700)">{{ f.label }}</span>
+                      <span style="{{ f.valueStyle }}">{{ f.display }}</span>
+                      <span style="display:flex; gap:4px">
+                        <sc-if value="{{ f.sensitive }}" hint-placeholder-val="{{ true }}">
+                          <button type="button" onClick="{{ f.toggle }}" title="Reveal" style="width:32px; height:32px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-300)"><i data-lucide="{{ f.eye }}" style="width:15px;height:15px"></i></button>
+                        </sc-if>
+                        <button type="button" title="Copy" style="width:32px; height:32px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-300)"><i data-lucide="copy" style="width:15px;height:15px"></i></button>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:18px; border-top:1px solid var(--color-divider)">
+              <span style="font-size:12.5px; color:var(--color-neutral-600)">Revision {{ detailA.revision }} · encrypted under key v{{ detailA.keyVersion }} · {{ detailA.updated }}</span>
+              <span style="font-size:12.5px; color:var(--color-neutral-700); display:flex; align-items:center; gap:6px"><i data-lucide="users" style="width:14px;height:14px"></i>{{ detailA.reach }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- A3 settings -->
+        <div data-screen-label="2a Settings" style="width:1000px; height:760px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); display:flex; padding:16px; gap:16px">
+          <aside style="width:252px; background:var(--color-surface); border-radius:var(--radius-lg); padding:22px 14px; display:flex; flex-direction:column; gap:6px; flex-shrink:0">
+            <div style="display:flex; align-items:center; gap:9px; padding:0 12px 14px">
+              <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+              <span style="font-size:13.5px; font-weight:600">Back to the vault</span>
+            </div>
+            <div style="font-family:var(--font-heading); font-size:20px; padding:0 12px 12px">Account</div>
+            <sc-for list="{{ settingsNav }}" as="s" hint-placeholder-count="6">
+              <div style="{{ s.rowStyle }}">
+                <span style="display:flex; align-items:center; gap:10px"><i data-lucide="{{ s.icon }}" style="width:16px;height:16px"></i>{{ s.label }}</span>
+                <sc-if value="{{ s.badge }}" hint-placeholder-val="{{ false }}">
+                  <span style="padding:2px 8px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); font-size:11px; font-weight:700">{{ s.badge }}</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </aside>
+
+          <div style="flex:1; background:var(--color-neutral-100); border-radius:var(--radius-lg); padding:34px 36px; display:flex; flex-direction:column; gap:18px; min-width:0">
+            <div style="max-width:540px">
+              <h3 style="margin:0 0 10px">Change master password</h3>
+              <p style="margin:0 0 10px; font-size:14px; line-height:1.5; color:var(--color-neutral-700)">Only your key is re-wrapped — none of your secrets are re-encrypted, so this is fast however large your vault is. Any backup you exported earlier still opens only with the password that was in force when you took it.</p>
+              <p style="margin:0; font-size:14px; line-height:1.5"><strong>Your other signed-in devices will ask for the new password</strong> the next time they do anything. A device that is offline right now keeps access to its cached copy until it reconnects.</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:14px; max-width:540px">
+              <div>
+                <label style="display:block; font-size:13px; font-weight:600; color:var(--color-neutral-700); margin-bottom:6px">Current master password</label>
+                <input type="password" value="passwordvalue" readonly style="font:inherit; font-size:15px; padding:12px 18px; border:1px solid var(--color-neutral-300); border-radius:999px; background:var(--color-bg); color:var(--color-text); width:100%">
+              </div>
+              <div>
+                <label style="display:block; font-size:13px; font-weight:600; color:var(--color-neutral-700); margin-bottom:6px">New master password</label>
+                <input type="password" value="passwordvaluenew" readonly style="font:inherit; font-size:15px; padding:12px 18px; border:1px solid var(--color-neutral-300); border-radius:999px; background:var(--color-bg); color:var(--color-text); width:100%">
+                <div style="display:flex; gap:4px; margin-top:10px">
+                  <sc-for list="{{ strengthBars }}" as="bar" hint-placeholder-count="5">
+                    <span style="{{ bar.style }}"></span>
+                  </sc-for>
+                </div>
+                <div style="font-size:13px; font-weight:700; color:var(--color-accent-700); margin-top:8px">Strong — acceptable</div>
+                <div style="font-size:12.5px; line-height:1.45; color:var(--color-neutral-700); margin-top:4px">At least 12 characters. A passphrase of several unrelated words is both stronger and easier to remember than a short, complicated one.</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px; align-items:center">
+              <button type="button" style="font-family:var(--font-heading); font-size:14px; padding:12px 22px; border-radius:999px; border:none; background:var(--color-accent); color:#fff; cursor:pointer" style-hover="background:var(--color-accent-600)">Change master password</button>
+              <span style="font-size:12.5px; color:var(--color-neutral-700)">Enabled once the new password is acceptable.</span>
+            </div>
+
+            <div style="margin-top:auto; display:flex; gap:12px; padding:16px 18px; border-radius:var(--radius-md); background:var(--color-accent-200); color:var(--color-accent-800)">
+              <i data-lucide="triangle-alert" style="width:17px;height:17px;flex-shrink:0;margin-top:2px"></i>
+              <div style="font-size:13.5px; line-height:1.5">There is no password reset to fall back on. If you forget this password, nobody — including us — can open the vault.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A4 phone -->
+        <div data-screen-label="2a Phone" style="width:390px; height:780px; border-radius:44px; overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); display:flex; flex-direction:column; border:9px solid var(--color-neutral-900)">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 22px 4px; font-size:12.5px; font-weight:600; color:var(--color-neutral-700)">
+            <span>9:41</span>
+            <span style="display:flex; align-items:center; gap:6px"><i data-lucide="timer" style="width:13px;height:13px"></i>12:40</span>
+          </div>
+          <div style="padding:8px 20px 0">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+              <span style="display:flex; align-items:center; gap:7px; padding:7px 14px; border-radius:999px; background:var(--color-surface); font-size:13.5px; font-weight:600"><i data-lucide="users" style="width:14px;height:14px"></i>Calder Studio <i data-lucide="chevron-down" style="width:13px;height:13px"></i></span>
+              <span style="width:36px; height:36px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); display:flex; align-items:center; justify-content:center"><i data-lucide="lock" style="width:16px;height:16px"></i></span>
+            </div>
+            <div style="display:flex; gap:9px; margin-top:12px; padding:11px 14px; border-radius:var(--radius-md); background:var(--color-accent-200); color:var(--color-accent-800); font-size:12.5px; line-height:1.45">
+              <i data-lucide="cloud-off" style="width:15px;height:15px;flex-shrink:0;margin-top:1px"></i>
+              <span><strong>Offline — reading only.</strong> Changes need a connection and nothing is queued.</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:12px; padding:13px 18px; border-radius:999px; background:var(--color-neutral-100); border:1px solid var(--color-neutral-300)">
+              <i data-lucide="search" style="width:17px;height:17px; color:var(--color-neutral-600)"></i>
+              <span style="font-size:15px; color:var(--color-neutral-600)">Search this vault</span>
+            </div>
+            <div style="display:flex; gap:7px; margin-top:12px; overflow:hidden">
+              <span style="padding:7px 15px; border-radius:999px; background:var(--color-accent); color:#fff; font-size:13px; font-weight:600; white-space:nowrap">All 24</span>
+              <span style="padding:7px 15px; border-radius:999px; border:1px solid var(--color-neutral-300); font-size:13px; white-space:nowrap">Work 11</span>
+              <span style="padding:7px 15px; border-radius:999px; border:1px solid var(--color-neutral-300); font-size:13px; white-space:nowrap">Personal 9</span>
+              <span style="padding:7px 15px; border-radius:999px; border:1px solid var(--color-neutral-300); font-size:13px; white-space:nowrap">Unfiled</span>
+            </div>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:14px 20px; display:flex; flex-direction:column; gap:8px">
+            <sc-for list="{{ phoneList }}" as="item" hint-placeholder-count="6">
+              <div style="background:var(--color-neutral-100); border-radius:22px; padding:13px 15px; display:flex; align-items:center; gap:12px; min-height:56px">
+                <span style="{{ item.avatarStyle }}">{{ item.initial }}</span>
+                <span style="flex:1; min-width:0">
+                  <span style="display:block; font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.title }}</span>
+                  <span style="display:block; font-size:12.5px; color:var(--color-neutral-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.sub }}</span>
+                </span>
+                <span style="width:44px; height:44px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="copy" style="width:17px;height:17px"></i></span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-around; padding:10px 12px 24px; background:var(--color-surface); border-top:1px solid var(--color-divider)">
+            <span style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:56px; min-height:44px; justify-content:center; color:var(--color-accent-700); font-size:11.5px; font-weight:700"><i data-lucide="key-round" style="width:20px;height:20px"></i>Secrets</span>
+            <span style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:56px; min-height:44px; justify-content:center; color:var(--color-neutral-700); font-size:11.5px"><i data-lucide="folder" style="width:20px;height:20px"></i>Organise</span>
+            <span style="width:52px; height:52px; border-radius:999px; background:var(--color-accent); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-md)"><i data-lucide="plus" style="width:24px;height:24px"></i></span>
+            <span style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:56px; min-height:44px; justify-content:center; color:var(--color-neutral-700); font-size:11.5px"><i data-lucide="user-plus" style="width:20px;height:20px"></i>Sharing</span>
+            <span style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:56px; min-height:44px; justify-content:center; color:var(--color-neutral-700); font-size:11.5px"><i data-lucide="settings" style="width:20px;height:20px"></i>Account</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ 2b ══════════ -->
+    <div id="2b" style="display:flex; flex-direction:column; gap:24px">
+      <div style="display:flex; align-items:flex-start; gap:14px">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:36px; height:36px; padding:0 13px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); font-family:var(--font-heading); font-size:16px">2b</span>
+        <div style="max-width:640px">
+          <h3 style="margin:0 0 4px">Search-first console</h3>
+          <p style="margin:0; font-size:15px; color:var(--color-neutral-700)">Search is the navigation. A slim icon rail replaces the hierarchy pane, filters live in a tray you pull open, and a secret opens as a sheet over the list — so the vault reads as one focused surface at any width. Settings arrives as a tabbed panel over the same surface instead of a separate screen.</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap">
+
+        <!-- B1 unlock -->
+        <div data-screen-label="2b Unlock" style="width:560px; height:640px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); padding:56px 48px; display:flex; flex-direction:column; justify-content:center">
+          <div style="width:58px; height:58px; border-radius:999px; background:var(--color-surface); display:flex; align-items:center; justify-content:center; color:var(--color-accent-700); margin-bottom:24px"><i data-lucide="lock" style="width:27px;height:27px"></i></div>
+          <h2 style="margin:0 0 10px">Welcome back, Ada.</h2>
+          <p style="font-size:14.5px; line-height:1.55; color:var(--color-neutral-700); margin:0 0 28px; max-width:360px">Your master password is used in this browser only. Enter it to decrypt the vault here.</p>
+          <input type="password" value="passwordvalue" readonly style="font:inherit; font-size:16px; padding:16px 22px; border:1px solid var(--color-neutral-300); border-radius:999px; background:var(--color-neutral-100); color:var(--color-text); width:100%">
+          <button type="button" style="margin-top:12px; font-family:var(--font-heading); font-size:16px; padding:16px 22px; border:none; border-radius:999px; background:var(--color-accent); color:#fff; cursor:pointer; width:100%" style-hover="background:var(--color-accent-600)">Unlock</button>
+          <div style="display:flex; gap:9px; margin-top:16px; font-size:12.5px; line-height:1.45; color:var(--color-neutral-700)">
+            <i data-lucide="key-round" style="width:15px;height:15px;flex-shrink:0;margin-top:2px"></i>
+            <span>A code from your authenticator is asked for after this.</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:28px; font-size:13.5px">
+            <a href="#2b" style="color:var(--color-neutral-700)">Not Ada?</a>
+            <a href="#2b" style="font-weight:600">Create a new vault</a>
+          </div>
+        </div>
+
+        <!-- B2 vault with sheet -->
+        <div data-screen-label="2b Vault" style="width:1360px; height:880px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); display:flex; position:relative">
+
+          <aside style="width:76px; background:var(--color-accent-2-800); padding:20px 0; display:flex; flex-direction:column; align-items:center; gap:10px; flex-shrink:0">
+            <span style="width:38px; height:38px; border-radius:999px; background:var(--color-accent); color:#fff; display:flex; align-items:center; justify-content:center; margin-bottom:10px"><i data-lucide="shield" style="width:19px;height:19px"></i></span>
+            <sc-for list="{{ railB }}" as="r" hint-placeholder-count="4">
+              <span title="{{ r.label }}" style="{{ r.style }}"><i data-lucide="{{ r.icon }}" style="width:19px;height:19px"></i></span>
+            </sc-for>
+            <span style="margin-top:auto; width:44px; height:44px; border-radius:999px; background:var(--color-accent-2-900); color:var(--color-accent-2-100); display:flex; align-items:center; justify-content:center; cursor:pointer" title="Lock now"><i data-lucide="lock" style="width:19px;height:19px"></i></span>
+            <span style="width:38px; height:38px; border-radius:999px; background:var(--color-accent-2-500); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700">A</span>
+          </aside>
+
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0">
+            <div style="display:flex; align-items:center; gap:14px; padding:16px 28px; border-bottom:1px solid var(--color-divider)">
+              <span style="display:flex; align-items:center; gap:8px; padding:9px 16px; border-radius:999px; background:var(--color-surface); font-size:14px; font-weight:600; flex-shrink:0"><i data-lucide="users" style="width:15px;height:15px"></i>Calder Studio<i data-lucide="chevron-down" style="width:14px;height:14px"></i></span>
+              <span style="flex:1; display:flex; align-items:center; gap:10px; padding:11px 20px; border-radius:999px; background:var(--color-neutral-100); border:1px solid var(--color-neutral-300); box-shadow:var(--shadow-sm); min-width:0">
+                <i data-lucide="search" style="width:17px;height:17px; color:var(--color-neutral-600)"></i>
+                <span style="flex:1; font-size:14.5px; color:var(--color-neutral-600)">Search titles, folders and tags — never your passwords</span>
+                <span style="padding:2px 8px; border-radius:6px; background:var(--color-neutral-200); font-size:11.5px; font-weight:700; color:var(--color-neutral-700)">/</span>
+              </span>
+              <span style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); font-size:12.5px; font-weight:700; flex-shrink:0"><i data-lucide="timer" style="width:14px;height:14px"></i>12:40</span>
+              <button type="button" style="font-family:var(--font-heading); font-size:14px; padding:11px 20px; border-radius:999px; border:none; background:var(--color-accent); color:#fff; cursor:pointer; display:flex; align-items:center; gap:7px; flex-shrink:0" style-hover="background:var(--color-accent-600)"><i data-lucide="plus" style="width:16px;height:16px"></i>New</button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 28px; background:var(--color-accent-200); color:var(--color-accent-800); font-size:13px">
+              <i data-lucide="mail" style="width:15px;height:15px;flex-shrink:0"></i>
+              <span style="flex:1"><strong>Bea Nkemi wants to join this vault.</strong> Accepting wraps the vault key to her key in your browser.</span>
+              <span style="padding:5px 14px; border-radius:999px; background:var(--color-accent-700); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer">Review</span>
+              <i data-lucide="x" style="width:15px;height:15px; cursor:pointer"></i>
+            </div>
+
+            <div style="padding:22px 28px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+              <span style="display:flex; align-items:center; gap:7px; padding:8px 16px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); font-size:13px; font-weight:600; cursor:pointer"><i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i>Filters<span style="padding:1px 7px; border-radius:999px; background:var(--color-accent-2-100); color:var(--color-accent-2-800); font-size:11px; font-weight:700">2</span></span>
+              <span style="display:flex; align-items:center; gap:6px; padding:8px 15px; border-radius:999px; background:var(--color-surface); font-size:13px"><i data-lucide="folder" style="width:13px;height:13px"></i>Work<i data-lucide="x" style="width:13px;height:13px"></i></span>
+              <span style="display:flex; align-items:center; gap:6px; padding:8px 15px; border-radius:999px; background:var(--color-surface); font-size:13px">Rotate soon<i data-lucide="x" style="width:13px;height:13px"></i></span>
+              <span style="font-size:13px; color:var(--color-neutral-700); margin-left:4px">7 of 24 · decrypted and searched on this device</span>
+            </div>
+
+            <div style="flex:1; overflow:hidden; padding:16px 28px 28px; display:flex; flex-direction:column; gap:6px">
+              <sc-for list="{{ listB }}" as="item" hint-placeholder-count="7">
+                <div onClick="{{ item.select }}" style="{{ item.rowStyle }}">
+                  <span style="{{ item.avatarStyle }}">{{ item.initial }}</span>
+                  <span style="display:flex; flex-direction:column; gap:1px; min-width:0; flex:1">
+                    <span style="font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.title }}</span>
+                    <span style="font-size:12.5px; color:var(--color-neutral-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ item.sub }}</span>
+                  </span>
+                  <span style="width:150px; font-size:12.5px; color:var(--color-neutral-700); flex-shrink:0">{{ item.template }}</span>
+                  <span style="width:120px; font-size:12.5px; color:var(--color-neutral-700); flex-shrink:0">{{ item.updated }}</span>
+                  <span style="display:flex; gap:4px; flex-shrink:0">
+                    <span title="Copy username" style="width:34px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-700)" style-hover="background:var(--color-neutral-200)"><i data-lucide="user" style="width:15px;height:15px"></i></span>
+                    <span title="Copy password" style="width:34px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-700)" style-hover="background:var(--color-neutral-200)"><i data-lucide="copy" style="width:15px;height:15px"></i></span>
+                    <span title="More" style="width:34px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-700)" style-hover="background:var(--color-neutral-200)"><i data-lucide="ellipsis" style="width:15px;height:15px"></i></span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="position:absolute; inset:0 0 0 76px; background:color-mix(in srgb, var(--color-neutral-900) 34%, transparent); pointer-events:none"></div>
+
+          <div style="position:absolute; top:0; right:0; bottom:0; width:520px; background:var(--color-neutral-100); box-shadow:var(--shadow-lg); padding:30px 32px; display:flex; flex-direction:column; gap:20px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px">
+              <span style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--color-neutral-700)"><i data-lucide="folder" style="width:14px;height:14px"></i>{{ detailB.folder }} · {{ detailB.template }}</span>
+              <span style="width:34px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-700); cursor:pointer" style-hover="background:var(--color-neutral-200)"><i data-lucide="x" style="width:17px;height:17px"></i></span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:14px">
+              <span style="width:52px; height:52px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); display:flex; align-items:center; justify-content:center; font-size:21px; font-weight:700; flex-shrink:0">{{ detailB.initial }}</span>
+              <h3 style="margin:0; min-width:0">{{ detailB.title }}</h3>
+            </div>
+
+            <div style="display:flex; gap:8px">
+              <button type="button" style="flex:1; font:inherit; font-size:13.5px; font-weight:600; padding:11px 16px; border-radius:999px; border:none; background:var(--color-accent-2-800); color:var(--color-accent-2-100); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px" style-hover="background:var(--color-accent-2-900)"><i data-lucide="copy" style="width:15px;height:15px"></i>Copy password</button>
+              <button type="button" style="font:inherit; font-size:13.5px; font-weight:600; padding:11px 18px; border-radius:999px; border:1px solid var(--color-neutral-300); background:transparent; color:var(--color-text); cursor:pointer; display:flex; align-items:center; gap:7px" style-hover="background:var(--color-neutral-200)"><i data-lucide="pencil" style="width:15px;height:15px"></i>Edit</button>
+              <button type="button" title="Delete" style="font:inherit; width:42px; border-radius:999px; border:1px solid var(--color-neutral-300); background:transparent; color:var(--color-accent-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-accent-200)"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <sc-for list="{{ fieldsB }}" as="f" hint-placeholder-count="5">
+                <div style="display:flex; flex-direction:column; gap:3px; padding:12px 14px; border-radius:var(--radius-md); background:var(--color-bg)">
+                  <span style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+                    <span style="font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; font-weight:700; color:var(--color-neutral-600)">{{ f.label }}</span>
+                    <span style="display:flex; gap:2px">
+                      <sc-if value="{{ f.sensitive }}" hint-placeholder-val="{{ true }}">
+                        <button type="button" onClick="{{ f.toggle }}" title="Reveal" style="width:30px; height:30px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-200)"><i data-lucide="{{ f.eye }}" style="width:14px;height:14px"></i></button>
+                      </sc-if>
+                      <button type="button" title="Copy" style="width:30px; height:30px; border-radius:999px; border:none; background:transparent; color:var(--color-neutral-700); cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-200)"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+                    </span>
+                  </span>
+                  <span style="{{ f.valueStyle }}">{{ f.display }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; gap:6px">
+              <sc-for list="{{ detailB.tags }}" as="t" hint-placeholder-count="2">
+                <span style="padding:5px 13px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); font-size:12.5px; font-weight:600">{{ t }}</span>
+              </sc-for>
+              <span style="display:flex; align-items:center; gap:5px; padding:5px 13px; border-radius:999px; border:1px dashed var(--color-neutral-400); color:var(--color-neutral-700); font-size:12.5px; cursor:pointer"><i data-lucide="plus" style="width:12px;height:12px"></i>Tag</span>
+            </div>
+
+            <div style="margin-top:auto; padding-top:16px; border-top:1px solid var(--color-divider); font-size:12.5px; color:var(--color-neutral-600); line-height:1.6">
+              Revision {{ detailB.revision }} · key v{{ detailB.keyVersion }} · edited {{ detailB.updated }}<br>{{ detailB.reach }}.
+            </div>
+          </div>
+        </div>
+
+        <!-- B3 settings panel -->
+        <div data-screen-label="2b Settings" style="width:1000px; height:760px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); background:color-mix(in srgb, var(--color-neutral-900) 34%, var(--color-bg)); display:flex; align-items:center; justify-content:center; padding:40px">
+          <div style="width:100%; height:100%; background:var(--color-bg); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); display:flex; flex-direction:column; overflow:hidden">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:24px 32px 0">
+              <h3 style="margin:0">Account</h3>
+              <span style="width:36px; height:36px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-700); cursor:pointer" style-hover="background:var(--color-neutral-200)"><i data-lucide="x" style="width:18px;height:18px"></i></span>
+            </div>
+            <div style="display:flex; gap:6px; padding:18px 32px 0; overflow:hidden">
+              <sc-for list="{{ settingsTabs }}" as="t" hint-placeholder-count="6">
+                <span style="{{ t.style }}">{{ t.label }}</span>
+              </sc-for>
+            </div>
+            <div style="flex:1; overflow:hidden; padding:26px 32px 32px; display:flex; gap:28px">
+              <div style="flex:1; display:flex; flex-direction:column; gap:14px; min-width:0">
+                <div>
+                  <h4 style="margin:0 0 6px">Two-factor authentication</h4>
+                  <p style="margin:0; font-size:14px; line-height:1.5; color:var(--color-neutral-700)">It raises the cost of a stolen password. It is not a defence against a device someone else already controls, because the code is checked on your own machine.</p>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border-radius:var(--radius-md); background:var(--color-neutral-100)">
+                  <span style="display:flex; align-items:center; gap:12px">
+                    <span style="width:38px; height:38px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="smartphone" style="width:18px;height:18px"></i></span>
+                    <span>
+                      <span style="display:block; font-size:14.5px; font-weight:600">Authenticator app</span>
+                      <span style="display:block; font-size:12.5px; color:var(--color-neutral-700)">A code is asked for after your master password</span>
+                    </span>
+                  </span>
+                  <span style="padding:5px 13px; border-radius:999px; background:var(--color-accent-2-200); color:var(--color-accent-2-800); font-size:12.5px; font-weight:700">On</span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border-radius:var(--radius-md); background:var(--color-neutral-100)">
+                  <span style="display:flex; align-items:center; gap:12px">
+                    <span style="width:38px; height:38px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="list-ordered" style="width:18px;height:18px"></i></span>
+                    <span>
+                      <span style="display:block; font-size:14.5px; font-weight:600">2 backup codes left</span>
+                      <span style="display:block; font-size:12.5px; color:var(--color-neutral-700)">Each works once, and they were shown only when you enrolled</span>
+                    </span>
+                  </span>
+                </div>
+                <div style="display:flex; gap:11px; padding:15px 18px; border-radius:var(--radius-md); background:var(--color-accent-200); color:var(--color-accent-800); font-size:13.5px; line-height:1.5">
+                  <i data-lucide="triangle-alert" style="width:16px;height:16px;flex-shrink:0;margin-top:2px"></i>
+                  <span>Without your authenticator app <em>and</em> these codes there is no way back into this account — there is no password reset to fall back on.</span>
+                </div>
+                <button type="button" style="align-self:flex-start; font:inherit; font-size:13.5px; font-weight:600; padding:11px 20px; border-radius:999px; border:1px solid var(--color-accent-700); background:transparent; color:var(--color-accent-700); cursor:pointer" style-hover="background:var(--color-accent-200)">Turn off</button>
+                <div style="font-size:12.5px; line-height:1.45; color:var(--color-neutral-700)">Turning it off asks for your master password, not just this session — removing the second factor is exactly what someone with a stolen session would do first.</div>
+              </div>
+              <div style="width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:8px">
+                <div style="font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700">Recent sign-ins</div>
+                <div style="font-size:12px; line-height:1.45; color:var(--color-neutral-700); margin-bottom:2px">Kept for 90 days. Locations are deliberately rough — enough to notice something unfamiliar.</div>
+                <div style="display:flex; gap:8px; padding:10px 13px; border-radius:var(--radius-md); background:var(--color-accent-200); color:var(--color-accent-800); font-size:12.5px; line-height:1.4; margin-bottom:2px">
+                  <i data-lucide="triangle-alert" style="width:14px;height:14px;flex-shrink:0;margin-top:2px"></i>
+                  <span>2 failed attempts in this period. If they were not you, change your master password.</span>
+                </div>
+                <sc-for list="{{ signIns }}" as="s" hint-placeholder-count="4">
+                  <div style="display:flex; flex-direction:column; gap:2px; padding:10px 13px; border-radius:var(--radius-md); background:var(--color-neutral-100)">
+                    <span style="{{ s.labelStyle }}">{{ s.outcome }}</span>
+                    <span style="font-size:12px; color:var(--color-neutral-700)">{{ s.detail }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B4 phone -->
+        <div data-screen-label="2b Phone" style="width:390px; height:780px; border-radius:44px; overflow:hidden; box-shadow:var(--shadow-lg); background:var(--color-bg); display:flex; flex-direction:column; border:9px solid var(--color-neutral-900)">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 22px 4px; font-size:12.5px; font-weight:600; color:var(--color-neutral-700)">
+            <span>9:41</span>
+            <span style="display:flex; align-items:center; gap:6px"><i data-lucide="timer" style="width:13px;height:13px"></i>12:40</span>
+          </div>
+          <div style="padding:10px 20px 0">
+            <div style="display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:999px; background:var(--color-neutral-100); border:1px solid var(--color-accent); box-shadow:var(--shadow-sm)">
+              <i data-lucide="search" style="width:18px;height:18px; color:var(--color-accent-700)"></i>
+              <span style="flex:1; font-size:15px; font-weight:600">stri</span>
+              <i data-lucide="x" style="width:16px;height:16px; color:var(--color-neutral-600)"></i>
+            </div>
+            <div style="font-size:12.5px; color:var(--color-neutral-700); margin-top:10px; padding:0 4px">2 of 24 match · titles, folders and tags only</div>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:12px 20px; display:flex; flex-direction:column; gap:8px">
+            <div style="background:var(--color-neutral-100); border-radius:22px; padding:14px 16px; display:flex; align-items:center; gap:12px">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--color-accent-200); color:var(--color-accent-700); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0">S</span>
+              <span style="flex:1; min-width:0">
+                <span style="display:block; font-size:15px; font-weight:600"><span style="background:var(--color-accent-200)">Stri</span>pe dashboard</span>
+                <span style="display:block; font-size:12.5px; color:var(--color-neutral-700)">Login · Work</span>
+              </span>
+              <span style="width:44px; height:44px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="copy" style="width:17px;height:17px"></i></span>
+            </div>
+            <div style="background:var(--color-neutral-100); border-radius:22px; padding:14px 16px; display:flex; align-items:center; gap:12px">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--color-neutral-200); color:var(--color-neutral-800); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0">S</span>
+              <span style="flex:1; min-width:0">
+                <span style="display:block; font-size:15px; font-weight:600"><span style="background:var(--color-accent-200)">Stri</span>ping licence key</span>
+                <span style="display:block; font-size:12.5px; color:var(--color-neutral-700)">API key · matched in tag</span>
+              </span>
+              <span style="width:44px; height:44px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="copy" style="width:17px;height:17px"></i></span>
+            </div>
+            <div style="margin-top:12px; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:700; padding:0 4px">Jump to</div>
+            <div style="display:flex; flex-wrap:wrap; gap:7px; padding:0 2px">
+              <span style="display:flex; align-items:center; gap:6px; padding:9px 15px; border-radius:999px; background:var(--color-surface); font-size:13px; min-height:44px"><i data-lucide="folder" style="width:14px;height:14px"></i>Work</span>
+              <span style="display:flex; align-items:center; gap:6px; padding:9px 15px; border-radius:999px; background:var(--color-surface); font-size:13px; min-height:44px"><i data-lucide="users" style="width:14px;height:14px"></i>Calder Studio</span>
+              <span style="display:flex; align-items:center; gap:6px; padding:9px 15px; border-radius:999px; background:var(--color-surface); font-size:13px; min-height:44px"><i data-lucide="plus" style="width:14px;height:14px"></i>New login</span>
+            </div>
+          </div>
+          <div style="padding:12px 20px 26px; background:var(--color-surface); border-top:1px solid var(--color-divider); display:flex; align-items:center; gap:10px">
+            <span style="flex:1; display:flex; align-items:center; gap:9px; padding:13px 18px; border-radius:999px; background:var(--color-bg); font-size:14.5px; color:var(--color-neutral-700); min-height:44px"><i data-lucide="search" style="width:17px;height:17px"></i>Search or jump to…</span>
+            <span style="width:48px; height:48px; border-radius:999px; background:var(--color-accent-2-800); color:var(--color-accent-2-100); display:flex; align-items:center; justify-content:center; flex-shrink:0"><i data-lucide="lock" style="width:19px;height:19px"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:3100,&quot;height&quot;:2400},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable' | 'compact'&quot;}}">
+const SECRETS = [
+  { id: 'gh', initial: 'G', title: 'GitHub', template: 'Login', folder: 'Work', tags: ['2FA on'], updated: '3 days ago', revision: 4, keyVersion: 2, reach: 'Visible to 3 members', sub: 'Login · Work · ada@calder.studio' },
+  { id: 'st', initial: 'S', title: 'Stripe dashboard', template: 'Login', folder: 'Work', tags: ['Finance', 'Rotate soon'], updated: 'yesterday', revision: 9, keyVersion: 2, reach: 'Visible to 3 members', sub: 'Login · Work · ada@calder.studio' },
+  { id: 'am', initial: 'A', title: 'Amex platinum', template: 'Credit card', folder: 'Personal', tags: ['Finance'], updated: '2 weeks ago', revision: 2, keyVersion: 1, reach: 'Only you', sub: 'Credit card · Personal · ending 4021' },
+  { id: 'ws', initial: 'W', title: 'Wifi — studio', template: 'Secure note', folder: 'Work', tags: [], updated: '1 month ago', revision: 1, keyVersion: 2, reach: 'Visible to 3 members', sub: 'Secure note · Work · 2 fields' },
+  { id: 'ak', initial: 'S', title: 'Striping licence key', template: 'API key', folder: 'Work', tags: ['Rotate soon'], updated: '5 days ago', revision: 3, keyVersion: 2, reach: 'Visible to 3 members', sub: 'API key · Work · expires June' },
+  { id: 'pa', initial: 'P', title: 'Passport numbers', template: 'Secure note', folder: 'Family', tags: [], updated: '4 months ago', revision: 1, keyVersion: 1, reach: 'Only you', sub: 'Secure note · Family · 3 fields' },
+  { id: 'fi', initial: 'F', title: 'Figma', template: 'Login', folder: 'Work', tags: ['2FA on'], updated: '6 days ago', revision: 2, keyVersion: 2, reach: 'Visible to 3 members', sub: 'Login · Work · ada@calder.studio' },
+  { id: 'ba', initial: 'B', title: 'Bank of Ireland', template: 'Login', folder: 'Personal', tags: ['Finance'], updated: '3 weeks ago', revision: 5, keyVersion: 1, reach: 'Only you', sub: 'Login · Personal · 8817342' },
+  { id: 'un', initial: 'D', title: 'Domain registrar', template: 'Login', folder: null, tags: [], updated: 'today', revision: 1, keyVersion: 2, reach: 'Visible to 3 members', sub: 'Login · Unfiled · ada@calder.studio' },
+];
+
+const FIELDS = {
+  gh: [
+    { id: 'u', label: 'Username', value: 'ada@calder.studio', sensitive: false },
+    { id: 'p', label: 'Password', value: 'r7#Kq2vLm!4dTz', sensitive: true },
+    { id: 'o', label: 'One-time code', value: '4E2K QJ7M ZX9P', sensitive: true },
+    { id: 'w', label: 'Website', value: 'github.com', sensitive: false },
+  ],
+  st: [
+    { id: 'u', label: 'Username', value: 'ada@calder.studio', sensitive: false },
+    { id: 'p', label: 'Password', value: 'Hq3$wnP0vate9', sensitive: true },
+    { id: 'w', label: 'Website', value: 'dashboard.stripe.com', sensitive: false },
+    { id: 'n', label: 'Note', value: 'Restricted key only — the live key sits with finance.', sensitive: false },
+  ],
+  am: [
+    { id: 'c', label: 'Cardholder', value: 'Ada Calder', sensitive: false },
+    { id: 'n', label: 'Number', value: '3782 822463 14021', sensitive: true },
+    { id: 'e', label: 'Expires', value: '08 / 29', sensitive: false },
+    { id: 's', label: 'Security code', value: '4417', sensitive: true },
+  ],
+  ws: [
+    { id: 'n', label: 'Network', value: 'calder-studio-5g', sensitive: false },
+    { id: 'p', label: 'Passphrase', value: 'oat-lantern-quiet-42', sensitive: true },
+  ],
+  ak: [
+    { id: 'k', label: 'Key', value: 'sk_live_51Mq8xTbQ2v', sensitive: true },
+    { id: 'e', label: 'Environment', value: 'Production', sensitive: false },
+    { id: 'x', label: 'Expires', value: '14 June 2026', sensitive: false },
+  ],
+  pa: [
+    { id: 'a', label: 'Ada', value: 'PB4419827', sensitive: true },
+    { id: 'j', label: 'Jonah', value: 'PB6620114', sensitive: true },
+    { id: 'x', label: 'Expires', value: 'March 2031', sensitive: false },
+  ],
+  fi: [
+    { id: 'u', label: 'Username', value: 'ada@calder.studio', sensitive: false },
+    { id: 'p', label: 'Password', value: 'zq8Wme!2Rtb', sensitive: true },
+  ],
+  ba: [
+    { id: 'u', label: 'Account', value: '8817342', sensitive: false },
+    { id: 'p', label: 'PIN', value: '4471', sensitive: true },
+  ],
+  un: [
+    { id: 'u', label: 'Username', value: 'ada@calder.studio', sensitive: false },
+    { id: 'p', label: 'Password', value: 'Vt4!ncQ7lz', sensitive: true },
+  ],
+};
+
+const CUSTOM = {
+  gh: [
+    { id: 'c1', label: 'Deploy key name', value: 'studio-ci', sensitive: false },
+    { id: 'c2', label: 'Recovery codes', value: '9K2P · 4TQZ · 88LM', sensitive: true },
+  ],
+  st: [{ id: 'c1', label: 'Account id', value: 'acct_1MqTbQ', sensitive: false }],
+};
+
+const TONES = {
+  Login: ['var(--color-accent-200)', 'var(--color-accent-700)'],
+  'Credit card': ['var(--color-accent-2-200)', 'var(--color-accent-2-800)'],
+  'Secure note': ['var(--color-neutral-200)', 'var(--color-neutral-800)'],
+  'API key': ['var(--color-neutral-300)', 'var(--color-neutral-900)'],
+};
+
+class Component extends DCLogic {
+  state = { selA: 'gh', selB: 'st', revealed: {}, vault: 'shared' };
+
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  icons() {
+    if (window.lucide) window.lucide.createIcons();
+    else setTimeout(() => window.lucide && window.lucide.createIcons(), 400);
+  }
+
+  avatar(template, size) {
+    const [bg, fg] = TONES[template] || TONES.Login;
+    const s = size || 36;
+    return `width:${s}px; height:${s}px; border-radius:999px; background:${bg}; color:${fg}; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:${Math.round(s * 0.38)}px; flex-shrink:0`;
+  }
+
+  fields(secretId, includeCustom) {
+    const source = includeCustom ? CUSTOM[secretId] || [] : FIELDS[secretId] || [];
+    return source.map((f) => {
+      const key = secretId + ':' + (includeCustom ? 'c:' : '') + f.id;
+      const shown = !f.sensitive || this.state.revealed[key];
+      return {
+        label: f.label,
+        sensitive: f.sensitive,
+        display: shown ? f.value : '••••••••••••',
+        eye: shown && f.sensitive ? 'eye-off' : 'eye',
+        valueStyle:
+          'font-size:14.5px; overflow-wrap:anywhere; ' +
+          (f.sensitive ? 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:0.03em;' : ''),
+        toggle: () => this.setState((s) => ({ revealed: { ...s.revealed, [key]: !s.revealed[key] } })),
+      };
+    });
+  }
+
+  render_rowA(s, sel) {
+    return (
+      'display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:20px; cursor:pointer; min-height:44px; box-sizing:border-box; ' +
+      (s.id === sel
+        ? 'background:var(--color-neutral-100); box-shadow:var(--shadow-sm);'
+        : 'background:transparent;')
+    );
+  }
+
+  renderVals() {
+    const compact = this.props.density === 'compact';
+    const selA = this.state.selA;
+    const selB = this.state.selB;
+    const detailA = SECRETS.find((s) => s.id === selA) || SECRETS[0];
+    const detailB = SECRETS.find((s) => s.id === selB) || SECRETS[1];
+
+    const vaults = [
+      { id: 'personal', name: 'Personal', icon: 'user', rotating: false },
+      { id: 'shared', name: 'Calder Studio', icon: 'users', rotating: true },
+    ].map((v) => ({
+      ...v,
+      rowStyle:
+        'display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; border-radius:999px; font-size:14px; font-weight:600; cursor:pointer; min-height:40px; box-sizing:border-box; ' +
+        (v.id === this.state.vault
+          ? 'background:var(--color-neutral-100); box-shadow:var(--shadow-sm);'
+          : 'background:transparent;'),
+      select: () => this.setState({ vault: v.id }),
+    }));
+
+    const railB = [
+      { icon: 'key-round', label: 'Secrets', on: true },
+      { icon: 'folder', label: 'Folders and tags', on: false },
+      { icon: 'user-plus', label: 'Sharing', on: false },
+      { icon: 'file-text', label: 'Templates', on: false },
+    ].map((r) => ({
+      ...r,
+      style:
+        'width:44px; height:44px; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer; ' +
+        (r.on
+          ? 'background:var(--color-accent); color:#fff;'
+          : 'background:transparent; color:var(--color-accent-2-300);'),
+    }));
+
+    const settingsNav = [
+      { icon: 'key-round', label: 'Master password', on: true, badge: null },
+      { icon: 'smartphone', label: 'Two-factor', on: false, badge: '2 codes' },
+      { icon: 'file-text', label: 'Secret types', on: false, badge: null },
+      { icon: 'archive', label: 'Backup', on: false, badge: null },
+      { icon: 'cloud-off', label: 'Offline access', on: false, badge: 'On' },
+      { icon: 'history', label: 'Recent sign-ins', on: false, badge: '2 failed' },
+    ].map((s) => ({
+      ...s,
+      rowStyle:
+        'display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:999px; font-size:14px; cursor:pointer; min-height:42px; box-sizing:border-box; ' +
+        (s.on
+          ? 'background:var(--color-neutral-100); font-weight:700; box-shadow:var(--shadow-sm);'
+          : 'background:transparent; font-weight:500;'),
+    }));
+
+    const settingsTabs = ['Master password', 'Two-factor', 'Secret types', 'Backup', 'Offline access', 'Sign-ins'].map(
+      (label, i) => ({
+        label,
+        style:
+          'padding:9px 17px; border-radius:999px; font-size:13.5px; white-space:nowrap; cursor:pointer; ' +
+          (i === 1
+            ? 'background:var(--color-accent-2-800); color:var(--color-accent-2-100); font-weight:700;'
+            : 'background:var(--color-surface); color:var(--color-text);'),
+      }),
+    );
+
+    return {
+      vaults,
+      railB,
+      settingsNav,
+      settingsTabs,
+      scopes: [
+        { icon: 'key-round', label: 'All secrets', count: 24 },
+        { icon: 'clock', label: 'Recently used', count: 6 },
+        { icon: 'inbox', label: 'Unfiled', count: 1 },
+      ],
+      folders: [
+        { name: 'Work', count: 11 },
+        { name: 'Personal', count: 9 },
+        { name: 'Family', count: 3 },
+      ],
+      tags: [
+        { name: '2FA on', count: 7, on: false },
+        { name: 'Rotate soon', count: 3, on: true },
+        { name: 'Finance', count: 5, on: false },
+        { name: 'Archive', count: 2, on: false },
+      ].map((t) => ({
+        ...t,
+        chipStyle:
+          'padding:4px 11px; border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; ' +
+          (t.on
+            ? 'background:var(--color-accent); color:#fff;'
+            : 'background:var(--color-accent-2-200); color:var(--color-accent-2-800);'),
+      })),
+      listA: SECRETS.map((s) => ({
+        ...s,
+        avatarStyle: this.avatar(s.template, compact ? 30 : 36),
+        rowStyle: this.render_rowA(s, selA),
+        select: () => this.setState({ selA: s.id }),
+      })),
+      listB: SECRETS.slice(0, 7).map((s) => ({
+        ...s,
+        avatarStyle: this.avatar(s.template, 38),
+        rowStyle:
+          'display:flex; align-items:center; gap:14px; padding:11px 18px; border-radius:22px; cursor:pointer; min-height:48px; box-sizing:border-box; ' +
+          (s.id === selB
+            ? 'background:var(--color-neutral-100); box-shadow:var(--shadow-sm);'
+            : 'background:transparent;'),
+        select: () => this.setState({ selB: s.id }),
+      })),
+      phoneList: SECRETS.slice(0, 6).map((s) => ({ ...s, avatarStyle: this.avatar(s.template, 40) })),
+      detailA: { ...detailA, folder: detailA.folder || 'Unfiled' },
+      detailB: { ...detailB, folder: detailB.folder || 'Unfiled' },
+      fieldsA: this.fields(selA, false),
+      customA: this.fields(selA, true),
+      hasCustomA: (CUSTOM[selA] || []).length > 0,
+      fieldsB: this.fields(selB, false),
+      signIns: [
+        { outcome: 'Signed in', detail: 'around Dublin, IE · 7 Sept 2026, 09:41', ok: true },
+        { outcome: 'Signed in', detail: 'around Dublin, IE · 6 Sept 2026, 18:20', ok: true },
+        { outcome: 'Wrong two-factor code', detail: 'around Dublin, IE · 4 Sept 2026, 22:07', ok: false },
+        { outcome: 'Wrong master password', detail: '28 Aug 2026, 03:02', ok: false },
+      ].map((s) => ({
+        ...s,
+        labelStyle:
+          'font-size:13px; font-weight:600; ' +
+          (s.ok ? 'color:var(--color-text);' : 'color:var(--color-accent-700);'),
+      })),
+      strengthBars: [0, 1, 2, 3, 4].map((i) => ({
+        style:
+          'flex:1; height:5px; border-radius:999px; ' +
+          (i <= 3 ? 'background:var(--color-accent);' : 'background:var(--color-neutral-300);'),
+      })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
