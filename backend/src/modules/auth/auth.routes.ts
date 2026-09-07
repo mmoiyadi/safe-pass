@@ -17,7 +17,9 @@ import {
 } from '@pm/shared';
 import type { PrismaClient } from '../../../prisma/generated/client/index.js';
 import { authLimit } from '../../middleware/rate-limit.js';
+import { issueVerification } from './verify.routes.js';
 import { promotePendingInvitations } from '../vaults/invitation.service.js';
+import { notify, recordSignIn } from '../activity/sign-in-events.js';
 import {
   SESSION_COOKIE,
   cookieOptions,
@@ -128,18 +130,15 @@ export function authRoutes(prisma: PrismaClient) {
 
       const params = (body['kdfParams'] as KdfParams | undefined) ?? DEFAULT_PARAMS;
 
-      const { token } = await prisma.$transaction(async (tx) => {
+      const { token, userId } = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             email,
             authHashDigest: authDigest(authHash),
             recoveryAcknowledgedAt: new Date(),
-            // STAND-IN. The spec assumes email verification gates access to a shared vault,
-            // and `/users/public-key` is specified to return 404 for unverified accounts — but
-            // no user story tasks the verification flow itself, so nothing would ever set this
-            // and every account would read as unverified. Marking verified at registration
-            // keeps sharing working; see T144 in tasks.md for the real flow.
-            emailVerifiedAt: new Date(),
+            // Left null: the address is unproven until the emailed token comes back (T144).
+            // The account is fully usable meanwhile — verification gates being SHARED WITH,
+            // not owning a vault.
             kdfAlgorithm: params.algorithm,
             kdfMemoryKib: params.memoryKib,
             kdfIterations: params.iterations,
@@ -167,14 +166,22 @@ export function authRoutes(prisma: PrismaClient) {
           data: { vaultId: vault.id, actorId: user.id, action: 'vault_created' },
         });
 
-        return issueSession(tx as unknown as PrismaClient, user.id, {
+        const session = await issueSession(tx as unknown as PrismaClient, user.id, {
           deviceLabel: request.headers['user-agent']?.slice(0, 120),
         });
+        return { ...session, userId: user.id };
       });
 
+      // Both of these send mail, so both sit outside the transaction: a delivery problem must
+      // not undo an account that was created successfully.
+
+      // Proves control of the address, which is what makes sharing with it meaningful (T144).
+      // Failure here is recoverable from inside the app — there is a resend — so it must not
+      // fail the registration.
+      await issueVerification(prisma, userId, email).catch(() => {});
+
       // FR-069: an invitation waiting on this address becomes completable, and the owner who
-      // issued it is told. Outside the transaction because it sends mail, and a delivery
-      // problem must not undo a successful registration.
+      // issued it is told.
       await promotePendingInvitations(prisma, email);
 
       reply.setCookie(SESSION_COOKIE, token, cookieOptions);
@@ -202,15 +209,36 @@ export function authRoutes(prisma: PrismaClient) {
 
       if (!ok || !user?.keyring) {
         if (user) {
-          await prisma.signInEvent.create({ data: { userId: user.id, outcome: 'bad_password' } });
+          await recordSignIn(prisma, user.id, 'bad_password', {
+            userAgent: request.headers['user-agent'],
+            ip: request.ip,
+          });
         }
         return failUniformly(startedAt);
       }
 
+      // An enrolled second factor means the session starts PENDING: it may fetch the wrapped
+      // TOTP seed and nothing else, until the client presents a verified step (FR-013).
+      const enrolment = await prisma.totpEnrolment.findUnique({ where: { userId: user.id } });
+      const pendingTotp = enrolment?.confirmedAt != null;
+
       const { token } = await issueSession(prisma, user.id, {
         deviceLabel: request.headers['user-agent']?.slice(0, 120),
+        pendingTotp,
       });
-      await prisma.signInEvent.create({ data: { userId: user.id, outcome: 'success' } });
+
+      if (pendingTotp) {
+        // The sign-in is not complete yet, so it is not recorded as a success and no
+        // new-device notice goes out until the second factor clears.
+        reply.setCookie(SESSION_COOKIE, token, cookieOptions);
+        return reply.code(200).send({ totpRequired: true });
+      }
+
+      const { newDevice } = await recordSignIn(prisma, user.id, 'success', {
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
+      });
+      if (newDevice) await notify(prisma, user.id, 'new_device');
 
       reply.setCookie(SESSION_COOKIE, token, cookieOptions);
       // The keyring is wrapped material. It is useless without the master password.
@@ -265,6 +293,10 @@ export function authRoutes(prisma: PrismaClient) {
         await markSiblingsForReauth(tx as unknown as PrismaClient, user.id, session.id);
       });
 
+      // Notified rather than merely logged: an undetected password change is permanent
+      // lockout, because there is no recovery (research.md §9).
+      await notify(prisma, user.id, 'master_password_changed');
+
       return reply.code(204).send();
     });
 
@@ -295,6 +327,23 @@ export function authRoutes(prisma: PrismaClient) {
         wrappedUserKey: text(user.keyring!.wrappedUserKey),
         wrappedPrivateKey: text(user.keyring!.wrappedPrivateKey),
         publicKey: text(user.keyring!.publicKey),
+      };
+    });
+
+    /**
+     * The keyring, for a session that has cleared its second factor. Login withholds it while
+     * a session is pending, so this is how the client gets it afterwards.
+     */
+    app.get('/keyring', async (request) => {
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: request.session!.userId },
+        include: { keyring: true },
+      });
+      if (!user.keyring) throw new ApiError('AUTH_REQUIRED', 'No keyring');
+      return {
+        wrappedUserKey: text(user.keyring.wrappedUserKey),
+        wrappedPrivateKey: text(user.keyring.wrappedPrivateKey),
+        publicKey: text(user.keyring.publicKey),
       };
     });
 

@@ -84,6 +84,90 @@ export function accountRoutes(prisma: PrismaClient) {
     });
 
     /** DELETE /account — for a signed-in user who still knows their password. */
+    /**
+     * Personal-data export for portability (T133, research.md §8).
+     *
+     * Distinct from a vault backup, and the distinction is the whole point. A backup is the
+     * user's ciphertext; this is what the OPERATOR knows about them — the metadata a
+     * zero-knowledge design cannot avoid holding: who they are, which vaults they belong to,
+     * when they signed in, what they did to shared vaults.
+     *
+     * So this deliberately contains NO ciphertext. Including it would blur the very line the
+     * export exists to show: a user asking "what do you have on me?" is owed the answer for the
+     * part they cannot see for themselves, not a second copy of the part they already hold.
+     */
+    app.get('/personal-data', async (request) => {
+      const userId = request.session!.userId;
+
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+          memberships: { include: { vault: true } },
+          signInEvents: { orderBy: { at: 'desc' } },
+          sessions: true,
+          totpEnrolment: true,
+        },
+      });
+
+      const activity = await prisma.activityLogEntry.findMany({
+        where: { OR: [{ actorId: userId }, { subjectId: userId }] },
+        orderBy: { at: 'desc' },
+      });
+
+      return {
+        exportedAt: new Date().toISOString(),
+        note:
+          'This is the account information the service holds about you. It contains no vault ' +
+          'contents: those are encrypted with keys only you have, and are exported separately ' +
+          'as a vault backup.',
+        account: {
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+          emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+          recoveryAcknowledgedAt: user.recoveryAcknowledgedAt.toISOString(),
+          autoLockMinutes: user.autoLockMinutes,
+          offlineAccessEnabled: user.offlineAccessEnabled,
+          deletionRequestedAt: user.deletionRequestedAt?.toISOString() ?? null,
+          twoFactorEnrolled: user.totpEnrolment !== null,
+        },
+        // Vault NAMES are omitted: they are ciphertext, and a name belonging to a shared vault
+        // is not this user's alone to be handed out in a personal-data export.
+        memberships: user.memberships.map((m) => ({
+          vaultId: m.vaultId,
+          kind: m.vault.kind,
+          role: m.role,
+          status: m.status,
+          invitedAt: m.createdAt.toISOString(),
+          acceptedAt: m.acceptedAt?.toISOString() ?? null,
+          revokedAt: m.revokedAt?.toISOString() ?? null,
+        })),
+        signInHistory: user.signInEvents.map((e) => ({
+          at: e.at.toISOString(),
+          outcome: e.outcome,
+          coarseLocation: e.coarseLocation,
+          deviceLabel: e.deviceLabel,
+        })),
+        activeSessions: user.sessions.map((s) => ({
+          createdAt: s.createdAt.toISOString(),
+          expiresAt: s.expiresAt.toISOString(),
+          deviceLabel: s.deviceLabel,
+        })),
+        activity: activity.map((a) => ({
+          at: a.at.toISOString(),
+          vaultId: a.vaultId,
+          action: a.action,
+          youWereThe: a.actorId === userId ? 'actor' : 'subject',
+          metadata: a.metadata,
+        })),
+        retention: {
+          signInHistory: '90 days',
+          activityLog: 'the life of the vault it belongs to',
+          deletedSecrets: 'removed immediately, with no retention window',
+          sessions: 'purged at expiry',
+        },
+      };
+    });
+
     app.delete('/', async (request, reply) => {
       await deleteAccount(prisma, request.session!.userId);
       return reply.code(204).send();

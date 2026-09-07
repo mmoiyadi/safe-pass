@@ -6,13 +6,18 @@
  */
 import { useState, type FormEvent } from 'react';
 import { signIn } from '../../vault/session.js';
+import { unlockOffline } from '../../vault/offline-session.js';
+import { ApiError } from '../../api/client.js';
 
 export function Unlock({
   onUnlocked,
+  onTotpRequired,
   onForgot,
   onRegister,
 }: {
-  onUnlocked: (email: string) => void;
+  onUnlocked: (email: string, offline?: boolean) => void;
+  /** The password is handed on because the unlock is not finished until the factor clears. */
+  onTotpRequired: (email: string, password: string, userKey: Uint8Array) => void;
   onForgot: () => void;
   onRegister: () => void;
 }) {
@@ -26,10 +31,44 @@ export function Unlock({
     setError(null);
     setBusy(true);
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      if (result.totpRequired && result.userKey) {
+        onTotpRequired(email, password, result.userKey);
+        setPassword('');
+        return;
+      }
       setPassword('');
       onUnlocked(email);
-    } catch {
+    } catch (err) {
+      // A server that cannot be reached is not a rejected password. Fall back to the encrypted
+      // copy on this device, if there is one (FR-054). The password still has to unwrap the
+      // cached keys, so this is not a weaker check — it is the same check, run locally.
+      const unreachable =
+        err instanceof ApiError && (err.code === 'NETWORK_UNREACHABLE' || err.code === 'OFFLINE');
+
+      if (unreachable) {
+        try {
+          const offline = await unlockOffline(email, password);
+          if (offline) {
+            setPassword('');
+            onUnlocked(email, true);
+            return;
+          }
+          setError(
+            'This device is offline and has no stored copy of that vault. Reconnect to sign in ' +
+              'for the first time on this device.',
+          );
+        } catch {
+          // Reached the cache but could not open it: the password is wrong, or the copy belongs
+          // to a password that has since been changed elsewhere.
+          setError(
+            'That master password does not open the copy stored on this device. If you changed ' +
+              'it on another device, reconnect so this one can catch up.',
+          );
+        }
+        return;
+      }
+
       // Deliberately does not distinguish an unknown account from a wrong password (FR-003).
       setError('That email address and master password do not match an account.');
     } finally {

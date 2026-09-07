@@ -9,9 +9,12 @@ import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../../src/server.js';
 import type { PrismaClient } from '../../prisma/generated/client/index.js';
 
-export async function buildTestServer(prisma: PrismaClient): Promise<FastifyInstance> {
+export async function buildTestServer(
+  prisma: PrismaClient,
+  options: { rateLimit?: boolean } = {},
+): Promise<FastifyInstance> {
   process.env['COOKIE_SECRET'] ??= 'test-cookie-secret-at-least-32-bytes-long';
-  return buildServer({ prisma });
+  return buildServer({ prisma, rateLimit: options.rateLimit ?? false });
 }
 
 export interface Res {

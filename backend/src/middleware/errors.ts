@@ -34,6 +34,13 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
     }
 
+    // Defence in depth: recognise the limiter by its body too, so a change to how the plugin
+    // surfaces the error cannot silently turn a 429 back into a 500.
+    const body = raw as { error?: { code?: string } };
+    if (body?.error?.code === 'RATE_LIMITED') {
+      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+    }
+
     if (error.validation) {
       return reply
         .code(400)

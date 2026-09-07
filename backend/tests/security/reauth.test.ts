@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createTestDb, type TestDb } from '../helpers/db.js';
 import { buildTestServer, call, sessionCookie } from '../helpers/client.js';
-import { login, registration } from '../helpers/enrol.js';
+import { login } from '../helpers/enrol.js';
 import { buildRegistrationRequest } from '../../../frontend/src/crypto/enrolment.js';
 import { deriveAuthHash, deriveMasterKey, DEFAULT_KDF_PARAMS } from '../../../frontend/src/crypto/kdf.js';
 import { deriveStretchedMasterKey } from '../../../frontend/src/crypto/master-key.js';

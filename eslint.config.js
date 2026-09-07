@@ -12,6 +12,9 @@ export default tseslint.config(
       '**/playwright-report/',
       '**/test-results/',
       'specs/',
+      // Prisma's generated client. Thousands of errors from code we do not write and cannot
+      // fix, which drowned out real findings until it was ignored here.
+      'backend/prisma/generated/',
     ],
   },
   js.configs.recommended,
@@ -64,5 +67,35 @@ export default tseslint.config(
   {
     files: ['**/tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
     rules: { 'no-console': 'off' },
+  },
+
+  /**
+   * Backend TESTS may reach into the client's crypto, and must.
+   *
+   * The rule above exists to keep a decryption path out of the shipped server. A test is not
+   * shipped, and the only honest way to assert that the server stores ciphertext it cannot read
+   * is to encrypt with the real client code and then check the row. Re-implementing the crypto
+   * inside the tests would make them agree with themselves rather than with the product.
+   *
+   * The restriction on pulling client crypto LIBRARIES into backend source still stands: this
+   * relaxes the frontend-import group only, and only under tests/.
+   */
+  {
+    files: ['backend/tests/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['hash-wasm', 'otpauth', '@noble/*', '@zxcvbn-ts/*'],
+              message:
+                'Client-side crypto libraries MUST NOT be used on the server. Drive them ' +
+                'through frontend/src/crypto instead, so tests exercise the real client path.',
+            },
+          ],
+        },
+      ],
+    },
   },
 );

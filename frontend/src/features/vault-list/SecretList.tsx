@@ -25,6 +25,14 @@ import { SensitiveField } from '../../components/SensitiveField.js';
 import { CopyButton } from '../../components/CopyButton.js';
 import { TemplateForm, type TemplateFormValues } from '../templates/TemplateForm.js';
 import { DeleteDialog } from '../secret-detail/DeleteDialog.js';
+import {
+  CustomFieldList,
+  CUSTOM_FIELDS_KEY,
+  decodeCustomFields,
+  encodeCustomFields,
+  type CustomField,
+} from '../secret-detail/CustomFields.js';
+import type { CachedVault } from '../../vault/offline-cache.js';
 import { SearchBar } from '../search/SearchBar.js';
 import { Filters, UNFILED, type FilterState, type NamedItem } from './Filters.js';
 
@@ -37,17 +45,26 @@ interface DecryptedSecret {
   folderId: string | null;
   tagIds: string[];
   fields: Record<string, string>;
+  /** This secret's own extra fields, unpacked from the single reserved envelope. */
+  custom: CustomField[];
 }
 
 export function SecretList({
   vaultId,
   templates,
   shared,
+  cached,
   onDataChanged,
 }: {
   vaultId: string;
   templates: TemplateVersionRecord[];
   shared: boolean;
+  /**
+   * The device's encrypted copy, supplied when this session was opened with no network. When
+   * present it is the ONLY source: the server is not reachable, so asking it would just fail
+   * and leave the user staring at an empty vault they know is not empty (FR-054).
+   */
+  cached?: CachedVault | undefined;
   onDataChanged?: (folders: NamedItem[], tags: NamedItem[], folderCounts: Map<string, number>) => void;
 }) {
   const [items, setItems] = useState<DecryptedSecret[]>([]);
@@ -61,16 +78,32 @@ export function SecretList({
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<FilterState>({ folderId: null, tagIds: [] });
 
-  const byId = useMemo(() => new Map(templates.map((t) => [t.id, t] as const)), [templates]);
+  /**
+   * Older template versions fetched on demand. The templates prop carries current versions
+   * only, so a secret written before its template changed has nothing to render from until
+   * its version is resolved (FR-040).
+   */
+  const [olderVersions, setOlderVersions] = useState<TemplateVersionRecord[]>([]);
+
+  const byId = useMemo(
+    () => new Map([...templates, ...olderVersions].map((t) => [t.id, t] as const)),
+    [templates, olderVersions],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, folderRows, tagRows] = await Promise.all([
-        api<SecretRecord[]>('GET', `/vaults/${vaultId}/secrets`),
-        api<Array<{ id: string; name: string; keyVersion: number }>>('GET', `/vaults/${vaultId}/folders`),
-        api<Array<{ id: string; name: string; keyVersion: number }>>('GET', `/vaults/${vaultId}/tags`),
-      ]);
+      const [rows, folderRows, tagRows] = cached
+        ? [
+            cached.secrets as unknown as SecretRecord[],
+            cached.folders as Array<{ id: string; name: string; keyVersion: number }>,
+            cached.tags as Array<{ id: string; name: string; keyVersion: number }>,
+          ]
+        : await Promise.all([
+            api<SecretRecord[]>('GET', `/vaults/${vaultId}/secrets`),
+            api<Array<{ id: string; name: string; keyVersion: number }>>('GET', `/vaults/${vaultId}/folders`),
+            api<Array<{ id: string; name: string; keyVersion: number }>>('GET', `/vaults/${vaultId}/tags`),
+          ]);
 
       const decryptedFolders: NamedItem[] = [];
       for (const f of folderRows) {
@@ -89,7 +122,14 @@ export function SecretList({
         for (const [fieldId, envelope] of Object.entries(row.fieldValues)) {
           fields[fieldId] = await decrypt(key, envelope);
         }
+
+        // The custom-field blob is one reserved entry, not a template field. Lift it out so
+        // nothing downstream mistakes it for a value to render.
+        const custom = decodeCustomFields(fields[CUSTOM_FIELDS_KEY]);
+        delete fields[CUSTOM_FIELDS_KEY];
+
         out.push({
+          custom,
           id: row.id,
           title: await decrypt(key, row.title),
           templateVersionId: row.templateVersionId,
@@ -105,12 +145,31 @@ export function SecretList({
       setFolders(decryptedFolders);
       setTags(decryptedTags);
       setError(null);
+
+      // Resolve any template version these secrets use that the current list does not carry.
+      // A failure here is not fatal: the secret still shows its title and can be deleted.
+      const known = new Set(templates.map((t) => t.id));
+      const missing = [...new Set(out.map((s) => s.templateVersionId))].filter((id) => !known.has(id));
+      if (missing.length > 0 && !cached) {
+        const resolved = await Promise.all(
+          missing.map((id) =>
+            api<TemplateVersionRecord>('GET', `/templates/versions/${id}`).catch(() => null),
+          ),
+        );
+        setOlderVersions(resolved.filter((v): v is TemplateVersionRecord => v !== null));
+      } else {
+        setOlderVersions([]);
+      }
     } catch {
-      setError('Could not load this vault.');
+      setError(
+        cached
+          ? 'Could not open the copy stored on this device.'
+          : 'Could not load this vault.',
+      );
     } finally {
       setLoading(false);
     }
-  }, [vaultId]);
+  }, [vaultId, templates, cached]);
 
   useEffect(() => void load(), [load]);
 
@@ -130,6 +189,11 @@ export function SecretList({
         const searchable: Record<string, string> = {};
         for (const field of fields) {
           if (!field.sensitive && item.fields[field.id]) searchable[field.id] = item.fields[field.id]!;
+        }
+        // Custom fields are fields: a non-sensitive one is as searchable as any other (FR-044).
+        // Sensitive ones stay out of the index, exactly like a template's sensitive fields.
+        for (const field of item.custom) {
+          if (!field.sensitive && field.value) searchable[field.id] = field.value;
         }
         return {
           id: item.id,
@@ -195,6 +259,14 @@ export function SecretList({
       // Every value is encrypted, sensitive or not. `sensitive` drives masking, not encryption.
       fieldValues[field.id] = await encrypt<SecretFieldValue>(key, values.fields[field.id] ?? '');
     }
+
+    // Labels included: the whole set goes in as one envelope so the server never sees what the
+    // user called these fields (CustomFields.tsx).
+    const packed = encodeCustomFields(values.custom);
+    if (packed !== null) {
+      fieldValues[CUSTOM_FIELDS_KEY] = await encrypt<SecretFieldValue>(key, packed);
+    }
+
     return { title: await encrypt<SecretTitle>(key, values.title), fieldValues, keyVersion };
   }
 
@@ -243,6 +315,7 @@ export function SecretList({
     const payload = await encryptValues(template, {
       title: secret.title,
       fields: secret.fields,
+      custom: secret.custom,
       folderId,
       tagIds: secret.tagIds,
     });
@@ -305,18 +378,20 @@ export function SecretList({
                     {hit && hit.matchedIn !== 'title' && ` · matched in ${hit.matchedIn}`}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button type="button" onClick={() => setEditing(item)} style={miniButton}>
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleting(item)}
-                    style={{ ...miniButton, color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                  >
-                    Delete
-                  </button>
-                </div>
+                {!cached && (
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button type="button" onClick={() => setEditing(item)} style={miniButton}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(item)}
+                      style={{ ...miniButton, color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
 
               {template && (
@@ -329,6 +404,8 @@ export function SecretList({
                     ))}
                 </dl>
               )}
+
+              <CustomFieldList fields={item.custom} />
 
               {(folders.length > 0 || tags.length > 0) && (
                 <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -388,7 +465,13 @@ export function SecretList({
       </ul>
 
       <div style={{ borderTop: '1px solid var(--border)', marginTop: '1.25rem', paddingTop: '1rem' }}>
-        {!adding && !editing && (
+        {cached && (
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
+            Adding and editing need a connection. Reconnect to make changes — nothing you do here
+            is queued, so nothing will be applied later without you seeing it.
+          </p>
+        )}
+        {!cached && !adding && !editing && (
           <>
             <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>Add a secret</h3>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -401,7 +484,7 @@ export function SecretList({
           </>
         )}
 
-        {adding && (
+        {!cached && adding && (
           <>
             <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>New {adding.name}</h3>
             <TemplateForm
@@ -413,7 +496,7 @@ export function SecretList({
           </>
         )}
 
-        {editing && byId.get(editing.templateVersionId) && (
+        {!cached && editing && byId.get(editing.templateVersionId) && (
           <>
             <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>Edit “{editing.title}”</h3>
             <TemplateForm
@@ -421,6 +504,7 @@ export function SecretList({
               initial={{
                 title: editing.title,
                 fields: editing.fields,
+                custom: editing.custom,
                 folderId: editing.folderId,
                 tagIds: editing.tagIds,
               }}

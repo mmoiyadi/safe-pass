@@ -11,10 +11,13 @@
  */
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import type { FieldType, TemplateField, TemplateVersionRecord } from '@pm/shared';
+import { CustomFields, type CustomField } from '../secret-detail/CustomFields.js';
 
 export interface TemplateFormValues {
   title: string;
   fields: Record<string, string>;
+  /** Extra fields belonging to this secret alone, not to its template (FR-039). */
+  custom: CustomField[];
   /** Filing, applied at save time so a new secret does not land unfiled and get lost. */
   folderId: string | null;
   tagIds: string[];
@@ -83,6 +86,7 @@ export function TemplateForm({
     for (const field of ordered) seed[field.id] = initial?.fields[field.id] ?? '';
     return seed;
   });
+  const [custom, setCustom] = useState<CustomField[]>(initial?.custom ?? []);
   const [folderId, setFolderId] = useState<string | null>(initial?.folderId ?? null);
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
   const [busy, setBusy] = useState(false);
@@ -96,7 +100,7 @@ export function TemplateForm({
     setError(null);
     setBusy(true);
     try {
-      await onSubmit({ title: title.trim(), fields: values, folderId, tagIds });
+      await onSubmit({ title: title.trim(), fields: values, custom, folderId, tagIds });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save.');
     } finally {
@@ -158,6 +162,8 @@ export function TemplateForm({
           )}
         </label>
       ))}
+
+      <CustomFields fields={custom} onChange={setCustom} formId={formId} />
 
       {/*
         Filing is separated from the fields above by a rule, because the two come from

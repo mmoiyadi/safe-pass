@@ -19,8 +19,25 @@ import {
   wrapVaultKeyForMember,
 } from '../../../frontend/src/crypto/vault-key.js';
 import { encrypt } from '../../../frontend/src/crypto/envelope.js';
+import { sentMail } from '../../src/modules/activity/mailer.js';
 
 export const PASSWORD = 'correct horse battery staple';
+
+/**
+ * Completes the emailed verification, the way a real user does by clicking the link.
+ *
+ * Sharing requires a verified address (T144), so an actor that skipped this would be invisible
+ * to every sharing test. Done through the real route rather than by writing `emailVerifiedAt`
+ * directly, so these tests keep exercising the flow instead of stepping around it.
+ */
+export async function verifyEmail(app: FastifyInstance, email: string): Promise<void> {
+  const mail = [...sentMail()].reverse().find((m) => m.to === email && /verify/i.test(m.subject));
+  const token = mail?.body.match(/verify\?token=([A-Za-z0-9_-]+)/)?.[1];
+  if (!token) throw new Error(`no verification email was sent to ${email}`);
+
+  const res = await call(app, 'POST', '/auth/verify', { payload: { token } });
+  if (res.status !== 204) throw new Error(`verification failed: ${res.raw}`);
+}
 
 export interface Actor {
   email: string;
@@ -41,6 +58,9 @@ export async function makeActor(
   const { request } = await buildRegistrationRequest(email, PASSWORD);
   const registered = await call(app, 'POST', '/auth/register', { payload: request });
   if (registered.status !== 201) throw new Error(`register failed: ${registered.raw}`);
+
+  // A real account proves its address before anyone can share with it.
+  await verifyEmail(app, email);
 
   const cookie = sessionCookie(
     await call(app, 'POST', '/auth/login', { payload: await login(email, PASSWORD) }),

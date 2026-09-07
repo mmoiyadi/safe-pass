@@ -228,6 +228,26 @@ of `text | password | email | url | number | date | totp | multiline`. The `sens
 drives encryption (FR-034) — **which fields are secret is a property of the data, not of the
 rendering code**, exactly as Principle V requires.
 
+**Known limitation — a custom template's `name` and field `label`s are stored in plaintext.**
+Verified in the browser on 2026-09-06: a custom template called "Server SSH Access" with a field
+labelled "Private key" appears verbatim in `template_version`. For built-ins this is fine — they
+ship with the product and are public knowledge. For a *custom* template it is the same class of
+leak the "why every value is encrypted" note above rejects: the label is authored by the user, and
+a template named after what it holds tells the server a great deal without decrypting anything.
+
+It is not fixed here because the fix is not local. Templates are account-scoped while the keys that
+could seal them are vault-scoped: a shared vault's secrets reference their author's template, so
+encrypting the metadata under the author's UserKey would make it unreadable to the other members
+who need it to render those very secrets. Sealing it under a VaultKey instead would mean a template
+could no longer be account-wide. That trade-off deserves its own decision rather than an
+implementation-time guess.
+
+Per-secret custom fields (FR-039) do **not** have this problem: label and value are packed into one
+JSON document and encrypted as a unit under the VaultKey, stored under the single reserved
+`fieldValues` key `__custom`. The server learns only that a secret has extra fields — not how many,
+what they are called, or what is in them. Asserted in
+`backend/tests/integration/no-migration.test.ts`.
+
 **Built-in templates seeded** (FR-029): Website Account, Credit Card, Identity/PAN Card, Secure Note.
 
 **Validation**: field `label`s unique within a version (FR-036). Removing a field creates a new

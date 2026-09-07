@@ -8,8 +8,10 @@
  * the database's protections.
  */
 
-/** Field names that must never be serialized into a log line, at any depth. */
-export const REDACTED_KEYS = [
+/**
+ * Names that are ALWAYS secret, wherever they appear. Redacted at any depth.
+ */
+export const ALWAYS_REDACTED = [
   'authHash',
   'currentAuthHash',
   'newAuthHash',
@@ -20,22 +22,30 @@ export const REDACTED_KEYS = [
   'wrappedPrivateKey',
   'wrappedVaultKey',
   'wrappedSecret',
-  'title',
-  'name',
   'fieldValues',
   'vaultName',
-  'secrets',
-  'folders',
-  'tags',
   'memberKeys',
+  'backupCode',
+  'backupCodes',
   'proof',
   'token',
-  'cookie',
 ] as const;
 
+/**
+ * Names that are secret in a REQUEST BODY but ordinary elsewhere.
+ *
+ * Scoped deliberately. A bare `name` or `*.name` rule also swallows `err.name`, which turns
+ * every stack trace into `[REDACTED]` — found while debugging a 500 that the log refused to
+ * describe. Redaction that hides your own errors costs more than it protects.
+ */
+export const BODY_ONLY_REDACTED = ['title', 'name', 'secrets', 'folders', 'tags'] as const;
+
 const paths: string[] = [];
-for (const key of REDACTED_KEYS) {
+for (const key of ALWAYS_REDACTED) {
   paths.push(key, `*.${key}`, `*.*.${key}`, `req.body.${key}`, `req.body.*.${key}`);
+}
+for (const key of BODY_ONLY_REDACTED) {
+  paths.push(`req.body.${key}`, `req.body.*.${key}`, `req.body.*.*.${key}`);
 }
 paths.push('req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]');
 

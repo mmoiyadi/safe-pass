@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { TemplateVersionRecord, VaultSummary } from '@pm/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { TemplateVersionRecord } from '@pm/shared';
 import './theme.css';
 import { api, setReauthHandler } from './api/client.js';
 import { isUnlocked, lock, onLockStateChange } from './vault/keyring.js';
 import { startAutoLock } from './vault/auto-lock.js';
-import { getKeyring, loadVaults, reauthenticate } from './vault/session.js';
+import { completeAfterTotp, getKeyring, loadVaults, reauthenticate, type VaultWithWraps } from './vault/session.js';
+import { refreshOfflineCache } from './vault/offline-session.js';
+import { loadSnapshot, type CachedVault } from './vault/offline-cache.js';
 import { Register } from './features/register/Register.js';
 import { Unlock } from './features/unlock/Unlock.js';
 import { ForgotPassword } from './features/unlock/ForgotPassword.js';
@@ -15,6 +17,13 @@ import { Sharing } from './features/sharing/Sharing.js';
 import { IncomingInvitations } from './features/sharing/IncomingInvitations.js';
 import type { NamedItem } from './features/vault-list/Filters.js';
 import { ChangePassword } from './features/settings/ChangePassword.js';
+import { TwoFactor } from './features/settings/TwoFactor.js';
+import { SignInHistory } from './features/settings/SignInHistory.js';
+import { TotpStep } from './features/unlock/TotpStep.js';
+import { TemplateEditor } from './features/templates/TemplateEditor.js';
+import { Backup } from './features/settings/backup.js';
+import { OfflineAccess } from './features/settings/OfflineAccess.js';
+import { VerifyBanner, VerifyLanding } from './features/settings/VerifyEmail.js';
 import { decrypt } from './crypto/envelope.js';
 import { vaultKeyFor } from './vault/keyring.js';
 
@@ -23,10 +32,35 @@ type Screen = 'unlock' | 'register' | 'forgot' | 'vault' | 'settings' | 'organis
 export function App() {
   const [screen, setScreen] = useState<Screen>('unlock');
   const [email, setEmail] = useState('');
+  /**
+   * The signed-in address, readable from callbacks with empty dependency lists.
+   * `refreshVaults` is created once and would otherwise close over the address as it was at
+   * first render — the empty string — and cache the vault under the wrong account.
+   */
+  const emailRef = useRef('');
+  /** True when this session was opened from the device's cached copy, with no network. */
+  const [offline, setOffline] = useState(false);
+  /** Read from callbacks with empty dependency lists, which cannot see current state. */
+  const offlineRef = useRef(false);
+  const vaultsRef = useRef<VaultWithWraps[]>([]);
+  /**
+   * A verification token in the URL. Read once at startup and stripped from the address bar
+   * immediately: a token in a URL ends up in browser history, and this one is single-use.
+   */
+  const [verifyToken, setVerifyToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (token) window.history.replaceState({}, '', window.location.pathname);
+    return token;
+  });
+  /** The cached vault contents backing an offline session, keyed by vault id. */
+  const [cachedVaults, setCachedVaults] = useState<Map<string, CachedVault>>(new Map());
   const [vaults, setVaults] = useState<VaultWithName[]>([]);
   const [selectedVaultId, setSelectedVaultId] = useState<string>('');
   const [templates, setTemplates] = useState<TemplateVersionRecord[]>([]);
   const [reauthNeeded, setReauthNeeded] = useState(false);
+  /** Held only between password and second factor; discarded either way. */
+  const [pendingTotp, setPendingTotp] = useState<{ email: string; password: string; userKey: Uint8Array } | null>(null);
   const [organise, setOrganise] = useState<{
     folders: NamedItem[];
     tags: NamedItem[];
@@ -35,8 +69,31 @@ export function App() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const handleDataChanged = useCallback(
-    (folders: NamedItem[], tags: NamedItem[], folderCounts: Map<string, number>) =>
-      setOrganise({ folders, tags, folderCounts }),
+    (folders: NamedItem[], tags: NamedItem[], folderCounts: Map<string, number>) => {
+      setOrganise({ folders, tags, folderCounts });
+
+      /*
+       * Refresh the offline copy whenever the vault's contents change.
+       *
+       * Without this the copy was written once at sign-in and never again, so a secret added
+       * afterwards simply was not there offline — the feature appeared to work while quietly
+       * serving a snapshot from the start of the session. Found by the end-to-end offline test,
+       * which adds a secret and then pulls the network, as a user would.
+       *
+       * Skipped in an offline session: there is nothing to refresh from, and re-writing the
+       * cache from the cache would be pointless at best.
+       */
+      if (!offlineRef.current) {
+        const keyring = getKeyring();
+        if (keyring) {
+          void refreshOfflineCache({
+            email: emailRef.current,
+            keyring,
+            vaults: vaultsRef.current,
+          });
+        }
+      }
+    },
     [],
   );
 
@@ -57,7 +114,7 @@ export function App() {
 
   /** Vault names are encrypted under each vault's own key, so they decrypt after unlock. */
   const refreshVaults = useCallback(async (): Promise<VaultWithName[]> => {
-    const loaded: VaultSummary[] = await loadVaults();
+    const loaded = await loadVaults();
     const named: VaultWithName[] = [];
     for (const vault of loaded) {
       let decryptedName = 'Untitled vault';
@@ -70,6 +127,12 @@ export function App() {
       }
       named.push({ ...vault, decryptedName });
     }
+
+    // Best-effort: the encrypted copy is refreshed from what was just fetched, so a later
+    // offline unlock opens the same vault. Never allowed to fail the sign-in (FR-054).
+    vaultsRef.current = loaded;
+    const keyring = getKeyring();
+    if (keyring) void refreshOfflineCache({ email: emailRef.current, keyring, vaults: loaded });
     setVaults(named);
     setSelectedVaultId((current) => {
       if (current && named.some((v) => v.id === current && v.status === 'active')) return current;
@@ -78,9 +141,52 @@ export function App() {
     return named;
   }, []);
 
+  const refreshTemplates = useCallback(async () => {
+    setTemplates(await api<TemplateVersionRecord[]>('GET', '/templates'));
+  }, []);
+
   const enterVault = useCallback(
-    async (userEmail: string) => {
+    async (userEmail: string, offline = false) => {
       setEmail(userEmail);
+      emailRef.current = userEmail;
+      setOffline(offline);
+      offlineRef.current = offline;
+
+      if (offline) {
+        // Everything comes from the cache; the network is not there to ask. The keyring and
+        // vault keys are already in memory — `unlockOffline` put them there.
+        const snapshot = await loadSnapshot(userEmail);
+        const cached = snapshot?.vaults ?? [];
+        const named: VaultWithName[] = [];
+        for (const vault of cached) {
+          let decryptedName = 'Untitled vault';
+          try {
+            decryptedName = await decrypt(vaultKeyFor(vault.id, vault.nameKeyVersion), vault.name);
+          } catch {
+            decryptedName = 'Vault (re-encrypting)';
+          }
+          named.push({
+            id: vault.id,
+            name: vault.name,
+            kind: vault.kind,
+            keyVersion: vault.keyVersion,
+            nameKeyVersion: vault.nameKeyVersion,
+            role: vault.role,
+            status: 'active',
+            // A rotation cannot be observed or joined from a cached copy; the banner would be
+            // stale and the action impossible, so it stays off until the device reconnects.
+            rotationPending: false,
+            decryptedName,
+          });
+        }
+        setVaults(named);
+        setCachedVaults(new Map(cached.map((v) => [v.id, v])));
+        setSelectedVaultId((current) => current || (named[0]?.id ?? ''));
+        setTemplates(cached[0]?.templates ?? []);
+        setScreen('vault');
+        return;
+      }
+
       const [, loadedTemplates] = await Promise.all([
         refreshVaults(),
         api<TemplateVersionRecord[]>('GET', '/templates'),
@@ -90,6 +196,31 @@ export function App() {
     },
     [refreshVaults],
   );
+
+  // Handled first, and without a session: the link arrives in a mail client, on any device.
+  if (verifyToken) {
+    return <VerifyLanding token={verifyToken} onDone={() => setVerifyToken(null)} />;
+  }
+
+  if (pendingTotp) {
+    return (
+      <TotpStep
+        userKey={pendingTotp.userKey}
+        onVerified={async () => {
+          await completeAfterTotp(pendingTotp.email, pendingTotp.password);
+          const email = pendingTotp.email;
+          // The password is not kept a moment past the unlock it was needed for.
+          pendingTotp.userKey.fill(0);
+          setPendingTotp(null);
+          await enterVault(email);
+        }}
+        onCancel={() => {
+          pendingTotp.userKey.fill(0);
+          setPendingTotp(null);
+        }}
+      />
+    );
+  }
 
   if (reauthNeeded) {
     return <ReauthPrompt email={email} onDone={() => { setReauthNeeded(false); void enterVault(email); }} />;
@@ -104,7 +235,8 @@ export function App() {
   if (!isUnlocked() || screen === 'unlock') {
     return (
       <Unlock
-        onUnlocked={(e) => void enterVault(e)}
+        onUnlocked={(e, offline) => void enterVault(e, offline)}
+        onTotpRequired={(e, password, userKey) => setPendingTotp({ email: e, password, userKey })}
         onForgot={() => setScreen('forgot')}
         onRegister={() => setScreen('register')}
       />
@@ -127,17 +259,54 @@ export function App() {
         <nav aria-label="Account" style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             type="button"
-            onClick={() => setScreen('settings')}
+            // Settings hides the vault region, which is right — it is an account screen, not a
+            // vault one — but that left no way back to the vault except locking. So it toggles.
+            onClick={() => setScreen((s) => (s === 'settings' ? 'vault' : 'settings'))}
             aria-current={screen === 'settings' ? 'page' : undefined}
             style={screen === 'settings' ? navButtonActive : navButton}
           >
-            Settings
+            {screen === 'settings' ? 'Close settings' : 'Settings'}
           </button>
-          <button type="button" onClick={() => { lock(); setScreen('unlock'); }} style={navButton}>
+          <button
+            type="button"
+            /*
+             * Lock clears the in-memory keys and NOTHING else.
+             *
+             * It must not discard the offline copy: locking is the ordinary end of a session,
+             * and "unlock later, with no network" is the entire point of holding that copy
+             * (FR-054). Clearing it here made offline access work exactly once per device —
+             * caught by the end-to-end offline test, which locks before going offline the way
+             * a real user would.
+             *
+             * The copy is discarded where FR-058 actually asks: when the user turns offline
+             * access off, when it goes stale, and when access to a vault is revoked.
+             */
+            onClick={() => { lock(); setScreen('unlock'); }}
+            style={navButton}
+          >
             Lock
           </button>
         </nav>
       </header>
+
+      {offline && (
+        <p
+          role="status"
+          style={{
+            border: '1px solid var(--warn)',
+            borderRadius: 6,
+            padding: '0.55rem 0.8rem',
+            margin: '0 0 1rem',
+            fontSize: '0.9rem',
+          }}
+        >
+          <strong>Offline — reading only.</strong> This is the encrypted copy stored on this
+          device. Creating, editing, deleting, and sharing need a connection, and nothing is
+          queued, so reconnect before making changes.
+        </p>
+      )}
+
+      {!offline && <VerifyBanner />}
 
       <IncomingInvitations
         vaults={vaults}
@@ -180,15 +349,34 @@ export function App() {
         </section>
       )}
 
-      {screen === 'settings' && keyring && (
-        <ChangePassword
-          email={email}
-          wrappedUserKey={keyring.wrappedUserKey}
-          onChanged={() => {
-            lock();
-            setScreen('unlock');
-          }}
-        />
+      {screen === 'settings' && (
+        <>
+          {keyring && (
+            <ChangePassword
+              email={email}
+              wrappedUserKey={keyring.wrappedUserKey}
+              onChanged={() => {
+                lock();
+                setScreen('unlock');
+              }}
+            />
+          )}
+          <TwoFactor email={email} />
+          {/* Account-scoped, like everything else on this screen: a template belongs to the
+              user and is usable in any of their vaults, so it does not sit under a vault tab. */}
+          <TemplateEditor templates={templates} onChanged={refreshTemplates} />
+          <Backup
+            email={email}
+            vaults={vaults}
+            keyring={keyring}
+            onRestored={async () => {
+              await refreshVaults();
+              setReloadKey((k) => k + 1);
+            }}
+          />
+          <OfflineAccess email={email} />
+          <SignInHistory />
+        </>
       )}
       {screen === 'settings' && !keyring && (
         <p style={{ color: 'var(--muted)' }}>
@@ -228,6 +416,7 @@ export function App() {
             vaultId={vault.id}
             templates={templates}
             shared={vault.kind !== 'personal'}
+            cached={offline ? cachedVaults.get(vault.id) : undefined}
             onDataChanged={handleDataChanged}
           />
         </div>

@@ -222,6 +222,8 @@ export interface TemplateVersionRecord {
   version: number;
   name: string;
   fields: TemplateField[];
+  /** Built-ins ship with the product and cannot be edited; custom ones belong to the caller. */
+  kind: 'builtin' | 'custom';
   createdAt: IsoDateTime;
 }
 

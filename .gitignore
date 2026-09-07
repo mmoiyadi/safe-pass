@@ -15,3 +15,6 @@ Thumbs.db
 playwright-report/
 test-results/
 backend/prisma/generated/
+
+# TypeScript incremental build state — machine-local, regenerated on every build.
+*.tsbuildinfo

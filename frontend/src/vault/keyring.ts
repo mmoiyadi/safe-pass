@@ -92,6 +92,15 @@ export function writeKeyFor(vaultId: string): { key: Uint8Array; keyVersion: num
   return { key: byVersion.get(keyVersion)!, keyVersion };
 }
 
+/**
+ * The UserKey, for the two places that legitimately need it directly: sealing and opening the
+ * TOTP seed. Deliberately narrow — everything else goes through the wrap/unwrap helpers rather
+ * than handling raw key material.
+ */
+export function userKeyForTotp(): Uint8Array | null {
+  return state?.userKey ?? null;
+}
+
 export function heldVersions(vaultId: string): number[] {
   return [...(state?.vaultKeys.get(vaultId)?.keys() ?? [])].sort((a, b) => a - b);
 }

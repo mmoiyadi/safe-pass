@@ -86,6 +86,7 @@ model User {
   signInEvents   SignInEvent[]
   totpEnrolment  TotpEnrolment?
   backupCodes    BackupCode[]
+  emailVerifications EmailVerification[]
   templates      Template[]
   sentInvites    VaultInvitation[] @relation("InvitedBy")
   startedRotations VaultRotation[]
@@ -364,6 +365,26 @@ model TotpEnrolment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("totp_enrolment")
+}
+
+/// Proof-of-mailbox tokens (T144).
+///
+/// Verification exists to make sharing meaningful: a vault is shared with a named account, and
+/// the name is worthless if anyone can claim any address. The token is stored as a digest for
+/// the same reason a backup code is — a database dump must not let its holder verify accounts
+/// and so become a valid target to share a vault with.
+model EmailVerification {
+  id          String    @id @default(uuid())
+  userId      String
+  tokenDigest Bytes
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification")
 }
 
 model BackupCode {

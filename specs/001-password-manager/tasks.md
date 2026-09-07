@@ -218,22 +218,22 @@ enforcement at the API, revoke, and confirm refusal within 60 seconds.
 
 ### Tests for US5 (Principle IV — write these first, and confirm they fail)
 
-- [ ] T103 [P] [US5] TOTP tests against RFC 6238 vectors in `frontend/tests/crypto/totp.test.ts`, including replay-within-step rejection and ±1-step drift acceptance
-- [ ] T104 [P] [US5] Backup-code tests in `backend/tests/security/backup-codes.test.ts` asserting each code is accepted exactly once
+- [X] T103 [P] [US5] TOTP tests against RFC 6238 vectors in `frontend/tests/crypto/totp.test.ts`, including replay-within-step rejection and ±1-step drift acceptance
+- [X] T104 [P] [US5] Backup-code tests in `backend/tests/security/backup-codes.test.ts` asserting each code is accepted exactly once
 
 ### Implementation for US5
 
-- [ ] T105 [P] [US5] Implement TOTP generation and verification in `frontend/src/crypto/totp.ts`, unwrapping the seed under the UserKey
-- [ ] T106 [US5] Implement `POST /auth/totp/enrol`, `/challenge`, and `/verify` in `backend/src/modules/auth/totp.route.ts` with the pending-session upgrade flow from [contracts/README.md](./contracts/README.md)
-- [ ] T107 [US5] Implement `DELETE /auth/totp` in `backend/src/modules/auth/totp.route.ts`, requiring a fresh master password proof rather than merely a valid session, and sending the removal notification (FR-015)
-- [ ] T108 [P] [US5] Implement second-factor removal and re-enrolment UI in `frontend/src/features/settings/totp/RemoveTotp.tsx`, warning that removal lowers account protection (FR-015)
-- [ ] T109 [P] [US5] Implement backup-code issue and single-use redemption in `backend/src/modules/auth/backup-codes.ts` (FR-014)
-- [ ] T110 [P] [US5] Implement sign-in event recording with 90-day retention in `backend/src/modules/activity/sign-in-events.ts` (research.md §9)
-- [ ] T111 [P] [US5] Implement `GET /security/sign-ins` in `backend/src/modules/activity/security.route.ts`
-- [ ] T112 [US5] Implement security notification emails in `backend/src/modules/activity/notifications.ts` for new-device sign-in, master password change, 2FA removal, backup-code use, and vault export (research.md §9)
-- [ ] T113 [P] [US5] Implement TOTP enrolment UI with QR code and backup-code display in `frontend/src/features/settings/totp/`
-- [ ] T114 [P] [US5] Implement the sign-in second-factor step in `frontend/src/features/unlock/TotpStep.tsx`
-- [ ] T115 [P] [US5] Implement the sign-in history view in `frontend/src/features/settings/SignInHistory.tsx`
+- [X] T105 [P] [US5] Implement TOTP generation and verification in `frontend/src/crypto/totp.ts`, unwrapping the seed under the UserKey
+- [X] T106 [US5] Implement `POST /auth/totp/enrol`, `/challenge`, and `/verify` in `backend/src/modules/auth/totp.route.ts` with the pending-session upgrade flow from [contracts/README.md](./contracts/README.md)
+- [X] T107 [US5] Implement `DELETE /auth/totp` in `backend/src/modules/auth/totp.route.ts`, requiring a fresh master password proof rather than merely a valid session, and sending the removal notification (FR-015)
+- [X] T108 [P] [US5] Implement second-factor removal and re-enrolment UI in `frontend/src/features/settings/totp/RemoveTotp.tsx`, warning that removal lowers account protection (FR-015)
+- [X] T109 [P] [US5] Implement backup-code issue and single-use redemption in `backend/src/modules/auth/backup-codes.ts` (FR-014)
+- [X] T110 [P] [US5] Implement sign-in event recording with 90-day retention in `backend/src/modules/activity/sign-in-events.ts` (research.md §9)
+- [X] T111 [P] [US5] Implement `GET /security/sign-ins` in `backend/src/modules/activity/security.route.ts`
+- [X] T112 [US5] Implement security notification emails in `backend/src/modules/activity/notifications.ts` for new-device sign-in, master password change, 2FA removal, backup-code use, and vault export (research.md §9)
+- [X] T113 [P] [US5] Implement TOTP enrolment UI with QR code and backup-code display in `frontend/src/features/settings/totp/`
+- [X] T114 [P] [US5] Implement the sign-in second-factor step in `frontend/src/features/unlock/TotpStep.tsx`
+- [X] T115 [P] [US5] Implement the sign-in history view in `frontend/src/features/settings/SignInHistory.tsx`
 
 **Checkpoint**: Quickstart V7 and V11 pass.
 
@@ -246,12 +246,12 @@ enforcement at the API, revoke, and confirm refusal within 60 seconds.
 **Independent test**: Define a template with a mix of sensitive and non-sensitive fields, save a
 secret under it, and confirm no migration ran.
 
-- [ ] T116 [P] [US6] Implement template create and update in `backend/src/modules/templates/templates.route.ts`, refusing duplicate field names within a version (FR-043)
-- [ ] T117 [US6] Implement template versioning in `backend/src/modules/templates/versions.ts` so editing a template creates a new version and existing secrets stay readable under the old one (FR-040)
-- [ ] T118 [P] [US6] Implement the template editor UI in `frontend/src/features/templates/TemplateEditor.tsx`
-- [ ] T119 [US6] Implement the data-loss warning before a template change that would orphan existing field values in `frontend/src/features/templates/ChangeWarning.tsx` (FR-042)
-- [ ] T120 [P] [US6] Implement per-secret custom fields in `frontend/src/features/secret-detail/CustomFields.tsx` (FR-039)
-- [ ] T121 [US6] Add a test in `backend/tests/integration/no-migration.test.ts` asserting `prisma migrate status` is unchanged after creating a custom template and saving a secret under it (Principle V, quickstart V8)
+- [X] T116 [P] [US6] Implement template create and update in `backend/src/modules/templates/templates.route.ts`, refusing duplicate field names within a version (FR-043)
+- [X] T117 [US6] Implement template versioning in `backend/src/modules/templates/versions.ts` so editing a template creates a new version and existing secrets stay readable under the old one (FR-040)
+- [X] T118 [P] [US6] Implement the template editor UI in `frontend/src/features/templates/TemplateEditor.tsx`
+- [X] T119 [US6] Implement the data-loss warning before a template change that would orphan existing field values in `frontend/src/features/templates/ChangeWarning.tsx` (FR-042)
+- [X] T120 [P] [US6] Implement per-secret custom fields in `frontend/src/features/secret-detail/CustomFields.tsx` (FR-039)
+- [X] T121 [US6] Add a test in `backend/tests/integration/no-migration.test.ts` asserting `prisma migrate status` is unchanged after creating a custom template and saving a secret under it (Principle V, quickstart V8)
 
 **Checkpoint**: Quickstart V8 passes.
 
@@ -267,20 +267,20 @@ secrets are still readable after entering the master password.
 
 ### Tests for US7 (Principle IV — write these first, and confirm they fail)
 
-- [ ] T122 [P] [US7] Offline-cache tests in `frontend/tests/crypto/offline-cache.test.ts` asserting the IndexedDB cache holds only ciphertext and no key material (FR-055, SC-013)
-- [ ] T123 [P] [US7] Backup tests in `backend/tests/security/export.test.ts` asserting the export contains no master password and nothing that permits decryption without it (FR-062, SC-015)
+- [X] T122 [P] [US7] Offline-cache tests in `frontend/tests/crypto/offline-cache.test.ts` asserting the IndexedDB cache holds only ciphertext and no key material (FR-055, SC-013)
+- [X] T123 [P] [US7] Backup tests in `backend/tests/security/export.test.ts` asserting the export contains no master password and nothing that permits decryption without it (FR-062, SC-015)
 
 ### Implementation for US7
 
-- [ ] T124 [P] [US7] Implement the service worker and app-shell caching in `frontend/src/sw/service-worker.ts` via Workbox
-- [ ] T125 [P] [US7] Add the web app manifest and icons in `frontend/public/manifest.webmanifest` (FR-050)
-- [ ] T126 [US7] Implement the encrypted IndexedDB vault cache in `frontend/src/vault/offline-cache.ts`, storing ciphertext only and requiring the master password on every session (FR-055, FR-056)
-- [ ] T127 [US7] Implement 30-day staleness expiry and cache discard on revocation or disabled offline access in `frontend/src/vault/offline-cache.ts` (FR-058, FR-059)
-- [ ] T128 [US7] Refuse creates, edits, deletes, and sharing while offline with a clear explanation in `frontend/src/api/client.ts` (FR-057)
-- [ ] T129 [P] [US7] Implement `GET /vaults/{id}/export` restricted to Owners and recorded in the activity log in `backend/src/modules/backup/export.route.ts` (FR-065)
-- [ ] T130 [P] [US7] Implement `POST /vaults/import` in `backend/src/modules/backup/import.route.ts`
-- [ ] T131 [US7] Implement client-side backup assembly and restore in `frontend/src/features/settings/backup.tsx`, stating that the file opens only with the master password in force when it was taken (FR-064)
-- [ ] T132 [P] [US7] Implement responsive layouts down to a 360-pixel viewport across all primary screens in `frontend/src/components/` (FR-051, SC-009)
+- [X] T124 [P] [US7] Implement the service worker and app-shell caching in `frontend/src/sw/service-worker.ts` via Workbox
+- [X] T125 [P] [US7] Add the web app manifest and icons in `frontend/public/manifest.webmanifest` (FR-050)
+- [X] T126 [US7] Implement the encrypted IndexedDB vault cache in `frontend/src/vault/offline-cache.ts`, storing ciphertext only and requiring the master password on every session (FR-055, FR-056)
+- [X] T127 [US7] Implement 30-day staleness expiry and cache discard on revocation or disabled offline access in `frontend/src/vault/offline-cache.ts` (FR-058, FR-059)
+- [X] T128 [US7] Refuse creates, edits, deletes, and sharing while offline with a clear explanation in `frontend/src/api/client.ts` (FR-057)
+- [X] T129 [P] [US7] Implement `GET /vaults/{id}/export` restricted to Owners and recorded in the activity log in `backend/src/modules/backup/export.route.ts` (FR-065)
+- [X] T130 [P] [US7] Implement `POST /vaults/import` in `backend/src/modules/backup/import.route.ts`
+- [X] T131 [US7] Implement client-side backup assembly and restore in `frontend/src/features/settings/backup.tsx`, stating that the file opens only with the master password in force when it was taken (FR-064)
+- [X] T132 [P] [US7] Implement responsive layouts down to a 360-pixel viewport across all primary screens in `frontend/src/components/` (FR-051, SC-009)
 
 **Checkpoint**: Quickstart V9 and V10 pass.
 
@@ -288,18 +288,18 @@ secrets are still readable after entering the master password.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T133 [P] Implement `GET /account/personal-data` in `backend/src/modules/auth/account.route.ts` for the portability export (research.md §8)
-- [ ] T134 [P] Add an export/restore fidelity test in `backend/tests/integration/backup-roundtrip.test.ts` exporting a 5,000-secret vault and restoring it into a clean account, asserting every secret, folder, tag, and template definition survives (SC-014)
-- [ ] T135 [P] Add the Playwright end-to-end suite in `frontend/tests/e2e/` covering quickstart scenarios V1–V15
-- [ ] T136 Add the zero-knowledge database assertion to CI in `backend/tests/security/no-plaintext.test.ts` — dump the database after a seeded run and assert the known secret value appears zero times (SC-004)
-- [ ] T137 [P] Add the concurrent-edit conflict test in `backend/tests/integration/concurrency.test.ts` asserting the second save is refused rather than silently discarding the first (quickstart V6)
-- [ ] T138 [P] Add load testing for 1,000 concurrent users in `backend/tests/integration/load.test.ts` (SC-010)
-- [ ] T139 [P] Add the accessibility pass across primary screens in `frontend/tests/e2e/a11y.spec.ts`
-- [ ] T140 [P] Write operator documentation in `docs/operations.md` covering deployment, TLS, backup of ciphertext, and the breach runbook (research.md §8)
-- [ ] T141 [P] Write the security model summary in `docs/security-model.md` for users, stating plainly what the operator can and cannot see (data-model.md closing section)
-- [ ] T142 [P] Add a dependency advisory scan to CI in `.github/workflows/audit.yml` and a release checklist gate in `docs/operations.md`, per the constitution's requirement that crypto, auth, and serialization dependencies be reviewed for known advisories before a release
-- [ ] T144 Implement email address verification in `backend/src/modules/auth/verify.routes.ts` — a token emailed at registration that sets `User.emailVerifiedAt`, replacing the stand-in in `auth.routes.ts` that marks every account verified on creation. **Gap found during US4**: the spec assumes verification gates access to a shared vault (Assumptions, "Registration is in scope") and T075/T081 both specify `404` for unverified accounts, but no user story tasked the flow that sets the field, so nothing would ever verify anyone
-- [ ] T143 Run a threat-model review of the crypto and auth surface and record its findings in `docs/threat-model.md` before release, per the constitution's Development Workflow gate
+- [X] T133 [P] Implement `GET /account/personal-data` in `backend/src/modules/auth/account.route.ts` for the portability export (research.md §8)
+- [X] T134 [P] Add an export/restore fidelity test in `backend/tests/integration/backup-roundtrip.test.ts` exporting a 5,000-secret vault and restoring it into a clean account, asserting every secret, folder, tag, and template definition survives (SC-014)
+- [X] T135 [P] Add the Playwright end-to-end suite in `frontend/tests/e2e/` covering quickstart scenarios V1–V15
+- [X] T136 Add the zero-knowledge database assertion to CI in `backend/tests/security/no-plaintext.test.ts` — dump the database after a seeded run and assert the known secret value appears zero times (SC-004)
+- [X] T137 [P] Add the concurrent-edit conflict test in `backend/tests/integration/concurrency.test.ts` asserting the second save is refused rather than silently discarding the first (quickstart V6)
+- [X] T138 [P] Add load testing for 1,000 concurrent users in `backend/tests/integration/load.test.ts` (SC-010)
+- [X] T139 [P] Add the accessibility pass across primary screens in `frontend/tests/e2e/a11y.spec.ts`
+- [X] T140 [P] Write operator documentation in `docs/operations.md` covering deployment, TLS, backup of ciphertext, and the breach runbook (research.md §8)
+- [X] T141 [P] Write the security model summary in `docs/security-model.md` for users, stating plainly what the operator can and cannot see (data-model.md closing section)
+- [X] T142 [P] Add a dependency advisory scan to CI in `.github/workflows/audit.yml` and a release checklist gate in `docs/operations.md`, per the constitution's requirement that crypto, auth, and serialization dependencies be reviewed for known advisories before a release
+- [X] T144 Implement email address verification in `backend/src/modules/auth/verify.routes.ts` — a token emailed at registration that sets `User.emailVerifiedAt`, replacing the stand-in in `auth.routes.ts` that marks every account verified on creation. **Gap found during US4**: the spec assumes verification gates access to a shared vault (Assumptions, "Registration is in scope") and T075/T081 both specify `404` for unverified accounts, but no user story tasked the flow that sets the field, so nothing would ever verify anyone
+- [X] T143 Run a threat-model review of the crypto and auth surface and record its findings in `docs/threat-model.md` before release, per the constitution's Development Workflow gate
 
 ---
 

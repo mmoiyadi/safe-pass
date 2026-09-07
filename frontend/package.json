@@ -12,8 +12,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@pm/shared": "workspace:*",
     "@noble/hashes": "1.5.0",
+    "@pm/shared": "workspace:*",
     "@zxcvbn-ts/core": "3.0.4",
     "@zxcvbn-ts/language-common": "3.0.4",
     "@zxcvbn-ts/language-en": "3.0.2",
@@ -25,14 +25,18 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.48.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "vite": "^6.0.1",
     "vite-plugin-pwa": "^0.21.0",
-    "vitest": "^2.1.4",
+    "vitest": "^3.2.7",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
     "workbox-window": "^7.3.0"
   }
 }

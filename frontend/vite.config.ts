@@ -6,15 +6,19 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // The service worker is written by hand (src/sw/service-worker.ts) rather than generated,
+      // so the rule that vault data is never cached is a branch that runs instead of a comment
+      // in this file. injectManifest builds it and substitutes the precache list.
+      strategies: 'injectManifest',
+      srcDir: 'src/sw',
+      filename: 'service-worker.ts',
       registerType: 'prompt',
       manifest: false, // served from public/manifest.webmanifest
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2}'],
-        // Vault data is NEVER cached by the service worker. The encrypted copy lives in
-        // IndexedDB under the app's control, so it can be discarded on revocation and
-        // expired on staleness (FR-058, FR-059). A Workbox runtime cache could not.
-        navigateFallback: '/index.html',
-        runtimeCaching: [],
+      injectManifest: {
+        // The application shell only. No vault data is ever precached: the encrypted copy lives
+        // in IndexedDB under the app's control, so it can be discarded on revocation and expired
+        // on staleness (FR-058, FR-059). A Workbox cache could honour neither.
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,webmanifest}'],
       },
     }),
   ],

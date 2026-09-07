@@ -30,5 +30,88 @@ body {
   font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-/* SC-009: every primary task completable at 360px with no horizontal scroll. */
 main { max-width: 46rem; margin: 0 auto; padding: 1rem; }
+
+/* ------------------------------------------------------------------ *
+ * Phone-sized screens (T132, FR-051, SC-009)
+ *
+ * Every primary task must be completable at 360px with no horizontal scrolling. The rules
+ * below enforce that structurally rather than relying on each component to remember, because
+ * the things that break a narrow layout here are not decorative: they are base64url ciphertext,
+ * long URLs, and email addresses, none of which contain a space to wrap at.
+ * ------------------------------------------------------------------ */
+
+/* The page itself must never scroll sideways. Anything too wide scrolls inside its own box. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/*
+ * Unbroken strings are the real hazard. `overflow-wrap` breaks them only where nothing else
+ * works, so ordinary prose still wraps between words.
+ */
+main,
+main p,
+main li,
+main dd,
+main code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* An input at 100% of a narrow column still overflows once padding is added, without this. */
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+  font: inherit;
+}
+
+/* Long values must scroll within their own row rather than widening the page. */
+pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 30rem) {
+  main {
+    padding: 0.75rem;
+  }
+
+  /*
+   * The secret detail list is `auto 1fr` on a wide screen: label beside value. At phone width
+   * that leaves a value column too narrow to read a password in, so the label moves above.
+   */
+  main dl {
+    grid-template-columns: 1fr !important;
+  }
+
+  main dd {
+    margin-inline-start: 0;
+  }
+
+  /*
+   * Touch targets. A 0.15rem-padded tag chip is fine with a mouse and a coin toss with a
+   * thumb, so anything interactive gets a minimum height on a small screen.
+   */
+  main button,
+  main input[type='checkbox'] {
+    min-height: 2.25rem;
+  }
+
+  main input[type='checkbox'] {
+    min-width: 1.15rem;
+  }
+
+  /* Headings at desktop scale eat a phone screen before any content appears. */
+  h1 {
+    font-size: 1.35rem;
+  }
+
+  h2 {
+    font-size: 1.15rem;
+  }
+}

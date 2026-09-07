@@ -1,0 +1,117 @@
+# Dependency advisory scan (T142).
+#
+# The constitution requires that dependencies handling cryptography, authentication, or
+# serialization be pinned AND reviewed for known advisories before a release. "Reviewed" is not
+# something a person reliably does on a schedule, so it runs here: on every change, and daily,
+# because an advisory can land against code nobody has touched in months.
+name: audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # A new advisory against an untouched dependency is the case a push-triggered scan misses
+    # entirely — which is most of them.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    name: Known advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Fails the build on a high or critical advisory anywhere in the tree. Moderate and low
+      # are reported without failing: a build that cries wolf daily gets ignored, and then the
+      # critical one is ignored with it.
+      - name: Audit (high and critical fail the build)
+        run: pnpm audit --audit-level=high
+
+      - name: Audit (full report, advisory only)
+        if: always()
+        run: pnpm audit || true
+
+  pinned-crypto-deps:
+    name: Crypto dependencies are pinned
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A caret range on a cryptographic dependency means the bytes that protect a vault can
+      # change without a commit. This is the constitution's pinning rule, enforced rather than
+      # remembered — it caught TypeScript resolving 5.6 → 5.9 during development.
+      - name: Refuse a range on any crypto, auth, or serialization dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Names are anchored with their closing quote so `typescript` does not also match
+          # `typescript-eslint`, which is a linter and has no business being pinned.
+          PINNED='"hash-wasm"|"otpauth"|"typescript"|"@noble/|"@zxcvbn-ts/'
+          failed=0
+          for manifest in package.json backend/package.json frontend/package.json shared/package.json; do
+            [ -f "$manifest" ] || continue
+            while IFS= read -r line; do
+              name=$(printf '%s' "$line" | sed -E 's/^[[:space:]]*"([^"]+)".*/\1/')
+              version=$(printf '%s' "$line" | sed -E 's/.*:[[:space:]]*"([^"]+)".*/\1/')
+              case "$version" in
+                \^*|\~*|\>*|\**|x*)
+                  echo "::error file=$manifest::$name is '$version' — cryptographic, auth, and serialization dependencies must be pinned to an exact version (constitution: Security Standards)"
+                  failed=1
+                  ;;
+              esac
+            done < <(grep -E "($PINNED)" "$manifest" || true)
+          done
+          exit $failed
+
+  verify:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pm
+          POSTGRES_PASSWORD: pm
+          POSTGRES_DB: pm
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://pm:pm@localhost:5432/pm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter backend exec prisma generate --schema src/db/schema.prisma
+      - run: pnpm --filter backend exec prisma migrate deploy --schema src/db/schema.prisma
+      - run: pnpm -r typecheck
+      - run: pnpm lint
+      - run: pnpm -r build
+
+      # Includes tests/security/no-plaintext.test.ts, which dumps the database and asserts the
+      # seeded secret values appear zero times (SC-004). If that ever fails, no other result in
+      # this run matters.
+      - run: pnpm -r test

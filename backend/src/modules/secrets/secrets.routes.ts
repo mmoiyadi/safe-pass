@@ -254,23 +254,3 @@ export function secretRoutes(prisma: PrismaClient) {
     });
   };
 }
-
-/** Template reads. Structure is not encrypted — the form must render before any secret loads. */
-export function templateRoutes(prisma: PrismaClient) {
-  return async function plugin(app: FastifyInstance, _opts: FastifyPluginOptions): Promise<void> {
-    app.get('/', async () => {
-      const versions = await prisma.templateVersion.findMany({
-        where: { template: { kind: 'builtin' } },
-        orderBy: { name: 'asc' },
-      });
-      return versions.map((v) => ({
-        id: v.id,
-        templateId: v.templateId,
-        version: v.version,
-        name: v.name,
-        fields: v.fields,
-        createdAt: v.createdAt.toISOString(),
-      }));
-    });
-  };
-}

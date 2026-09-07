@@ -27,13 +27,21 @@ const PUBLIC = new Set([
   // deletion is the only action available to them (FR-011). Gated by an emailed token instead.
   '/api/v1/account/deletion-request',
   '/api/v1/account/deletion-confirm',
+  // The verification link is opened from a mail client, often on a different device from the
+  // one holding the session. Requiring a session would fail exactly the people it protects.
+  // The emailed token is the credential, and it is single-use and expiring (T144).
+  '/api/v1/auth/verify',
 ]);
 
 /** The ONLY route a session stamped reauthRequired may reach (FR-073). */
 const REAUTH_ROUTE = '/api/v1/auth/reauth';
 
 /** Reachable by a session that has not yet cleared the second factor. */
-const PENDING_TOTP_ALLOWED = new Set(['/api/v1/auth/totp/challenge', '/api/v1/auth/totp/verify']);
+const PENDING_TOTP_ALLOWED = new Set([
+  '/api/v1/auth/totp/challenge',
+  '/api/v1/auth/totp/verify',
+  '/api/v1/auth/sessions',
+]);
 
 export function makeSessionGuard(prisma: PrismaClient) {
   return async function sessionGuard(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
