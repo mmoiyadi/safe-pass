@@ -152,28 +152,26 @@ export function secretRoutes(prisma: PrismaClient) {
         throw new ApiError('VALIDATION_FAILED', 'revision is required on update');
       }
 
-      const current = await prisma.secret.findFirst({ where: { id: secretId, vaultId } });
-      if (!current) throw notFound();
-
-      // The second save must not silently discard the first (spec edge case).
-      if (current.revision !== revision) {
-        throw new ApiError('REVISION_CONFLICT', 'This secret changed since you loaded it', {
-          current: {
-            id: current.id,
-            title: text(current.title),
-            fieldValues: current.fieldValues as Record<string, string>,
-            revision: current.revision,
-            keyVersion: current.keyVersion,
-            updatedAt: current.updatedAt.toISOString(),
-          },
-        });
-      }
+      const existing = await prisma.secret.findFirst({ where: { id: secretId, vaultId } });
+      if (!existing) throw notFound();
 
       const tagIds = await resolveTagIds(prisma, vaultId, body['tagIds']);
 
+      /**
+       * The revision is checked BY the write, not before it.
+       *
+       * Reading the row, comparing the revision, and then updating is three operations, and
+       * concurrent savers interleave between them: all of them read the same revision, all of
+       * them pass the comparison, and all of them write. That is precisely the silent
+       * overwrite this endpoint exists to prevent, and it survived every sequential test —
+       * CI caught it with five simultaneous saves, of which four were accepted.
+       *
+       * Putting `revision` in the WHERE clause makes the check and the write a single
+       * statement, so the database decides the winner and exactly one row can match.
+       */
       const updated = await prisma.$transaction(async (tx) => {
-        const secret = await tx.secret.update({
-          where: { id: secretId },
+        const { count } = await tx.secret.updateMany({
+          where: { id: secretId, vaultId, revision },
           data: {
             title: bytes(title),
             fieldValues,
@@ -181,6 +179,23 @@ export function secretRoutes(prisma: PrismaClient) {
             revision: { increment: 1 },
           },
         });
+
+        // Zero rows matched: someone else's save landed first, so this one is refused and the
+        // whole transaction — tags included — is rolled back.
+        if (count !== 1) {
+          const current = await tx.secret.findFirstOrThrow({ where: { id: secretId, vaultId } });
+          throw new ApiError('REVISION_CONFLICT', 'This secret changed since you loaded it', {
+            current: {
+              id: current.id,
+              title: text(current.title),
+              fieldValues: current.fieldValues as Record<string, string>,
+              revision: current.revision,
+              keyVersion: current.keyVersion,
+              updatedAt: current.updatedAt.toISOString(),
+            },
+          });
+        }
+
         // Omitting tagIds leaves the existing set alone; sending one replaces it wholesale.
         if (tagIds !== null) {
           await tx.secretTag.deleteMany({ where: { secretId } });
@@ -190,7 +205,8 @@ export function secretRoutes(prisma: PrismaClient) {
             });
           }
         }
-        return secret;
+
+        return tx.secret.findFirstOrThrow({ where: { id: secretId } });
       });
 
       return { id: updated.id, revision: updated.revision };

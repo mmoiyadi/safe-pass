@@ -114,7 +114,17 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc]             https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main"             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
+          # Debian keeps versioned binaries out of PATH, so /usr/bin/pg_dump stays on 16 and
+          # refuses the 17 server. Put 17 first for every later step.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Confirm pg_dump matches the server
+        run: |
           pg_dump --version
+          pg_dump --version | grep -q ' 17\.' || {
+            echo "::error::pg_dump is not version 17; no-plaintext.test.ts cannot dump the server"
+            exit 1
+          }
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter backend exec prisma generate --schema src/db/schema.prisma

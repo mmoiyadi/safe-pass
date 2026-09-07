@@ -146,18 +146,35 @@ describe('two devices editing the same secret', () => {
    * The race, rather than the sequence. Fired together so they genuinely contend, which is
    * where a check-then-write implemented outside a transaction would let both through.
    */
-  it('refuses all but one of several simultaneous saves at the same revision', async () => {
+  /**
+   * A hundred writers, not five.
+   *
+   * Five passed on a developer laptop while the endpoint was genuinely racy: the read, the
+   * comparison and the write were three separate operations, and a fast local database did not
+   * interleave them often enough to notice. CI, being slower and more contended, accepted four
+   * of five and failed. At a hundred the same broken code accepts EIGHTY-THREE — so this count
+   * is load-bearing, not decoration, and the race is now caught where it should be, before it
+   * reaches CI.
+   */
+  it('refuses all but one of many simultaneous saves at the same revision', async () => {
+    const WRITERS = 100;
     const secret = await makeSecret('Contended', 'original');
 
     const results = await Promise.all(
-      Array.from({ length: 5 }, (_, i) => save(secret.id, `writer ${i}`, secret.revision)),
+      Array.from({ length: WRITERS }, (_, i) => save(secret.id, `writer ${i}`, secret.revision)),
     );
 
     const accepted = results.filter((r) => r.status === 200);
     const refused = results.filter((r) => r.status === 409);
 
     expect(accepted).toHaveLength(1);
-    expect(refused).toHaveLength(4);
+    expect(refused).toHaveLength(WRITERS - 1);
+
+    // Exactly one write landed, so the revision moved by exactly one.
+    const read = await call(app, 'GET', `/vaults/${vaultId}/secrets/${secret.id}`, {
+      cookie: owner.cookie,
+    });
+    expect(read.body['revision']).toBe(secret.revision + 1);
   });
 
   it('advances the revision by exactly one per accepted write', async () => {
