@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '../../prisma/generated/client/index.js';
 
 const ADMIN_URL = process.env['DATABASE_URL'] ?? 'postgresql://pm:pm@localhost:5432/pm';
-const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const BACKEND = fileURLToPath(new URL('../../', import.meta.url));
 
 function urlFor(dbName: string): string {
@@ -21,12 +20,26 @@ function urlFor(dbName: string): string {
   return u.toString();
 }
 
-function psql(sql: string, database = 'postgres'): void {
-  execFileSync(
-    'docker',
-    ['compose', 'exec', '-T', 'db', 'psql', '-U', 'pm', '-d', database, '-v', 'ON_ERROR_STOP=1', '-c', sql],
-    { cwd: REPO_ROOT, stdio: 'pipe' },
-  );
+/**
+ * Runs a statement against the server named by DATABASE_URL, over the wire.
+ *
+ * This used to shell out to `docker compose exec db psql`, which quietly made DATABASE_URL a
+ * half-truth: it chose which server the tests CONNECTED to, while database creation always went
+ * to one specific local compose service. Anywhere Postgres was not that service — CI with a
+ * service container, a managed instance, a colleague running it natively — every suite skipped
+ * rather than failing, which is the worst way for a test harness to break.
+ *
+ * Connecting over the URL removes the coupling, and needs no psql binary on the machine.
+ */
+async function adminSql(sql: string): Promise<void> {
+  // CREATE and DROP DATABASE cannot run inside a transaction, so this uses its own connection
+  // to the always-present `postgres` database and executes directly.
+  const admin = new PrismaClient({ datasources: { db: { url: urlFor('postgres') } } });
+  try {
+    await admin.$executeRawUnsafe(sql);
+  } finally {
+    await admin.$disconnect();
+  }
 }
 
 export interface TestDb {
@@ -37,7 +50,7 @@ export interface TestDb {
 
 export async function createTestDb(): Promise<TestDb> {
   const name = `pm_test_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-  psql(`CREATE DATABASE "${name}"`);
+  await adminSql(`CREATE DATABASE "${name}"`);
   const url = urlFor(name);
 
   execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy', '--schema', 'src/db/schema.prisma'], {
@@ -52,7 +65,7 @@ export async function createTestDb(): Promise<TestDb> {
     url,
     drop: async () => {
       await prisma.$disconnect();
-      psql(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      await adminSql(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
     },
   };
 }
