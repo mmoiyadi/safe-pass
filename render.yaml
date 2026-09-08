@@ -33,8 +33,12 @@ services:
     # tool becomes three unrelated-looking errors and the real cause scrolls past.
     buildCommand: |
       set -e
-      corepack enable
-      corepack prepare pnpm@9.12.0 --activate
+      # No `corepack enable` here. It writes a shim into /usr/bin, which is read-only on the
+      # build image, so it fails with EROFS. It failed silently on the first deploy too — the
+      # script simply carried on and used the pnpm the image already provides, which is v9 and
+      # reads this lockfile. `packageManager` in package.json still pins the version for anyone
+      # building locally.
+      pnpm --version
       pnpm install --frozen-lockfile --prod=false
       pnpm --filter backend exec prisma generate --schema src/db/schema.prisma
       pnpm -r build
