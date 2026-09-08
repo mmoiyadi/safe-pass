@@ -136,8 +136,8 @@ export function Backup({
   }
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2>Backup</h2>
+    <section>
+      <h3>Backup</h3>
 
       <p style={note_}>
         A backup holds your vault exactly as the server does — encrypted. Keeping one is the only

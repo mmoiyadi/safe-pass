@@ -42,7 +42,7 @@ export function ChangePassword({
 
   return (
     <section>
-      <h2>Change master password</h2>
+      <h3>Change master password</h3>
 
       <p style={{ fontSize: '0.92rem', color: 'var(--muted)' }}>
         Only your key is re-wrapped — none of your secrets are re-encrypted, so this is fast

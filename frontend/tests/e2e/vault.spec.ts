@@ -90,6 +90,7 @@ test.describe('V3 — typed secrets and masking', () => {
   test('masks a sensitive field until it is revealed', async ({ page }) => {
     await register(page, email);
 
+    await page.getByRole('button', { name: 'New secret' }).click();
     await page.getByRole('button', { name: 'Website Account', exact: true }).click();
     await page.getByRole('textbox', { name: /^Title/ }).fill('v3-account');
     await page.getByRole('textbox', { name: /^Username/ }).fill('someone@example.test');
@@ -97,6 +98,10 @@ test.describe('V3 — typed secrets and masking', () => {
     await page.getByRole('button', { name: 'Save encrypted' }).click();
 
     await expect(page.getByText('v3-account', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    // Fields are in the detail pane now, so the row is selected to reach them (FR-015). The
+    // assertion below is unchanged: this is a structural update, not a weakened check (FR-032).
+    await page.getByRole('button', { name: /v3-account/ }).first().click();
 
     // Masked by default, and the value is genuinely absent from the page, not merely styled.
     await expect(page.getByText('v3-secret-value')).toHaveCount(0);
@@ -132,6 +137,9 @@ test.describe('V8 — custom templates need no deploy', () => {
     await register(page, email);
 
     await page.getByRole('button', { name: 'Settings' }).click();
+    // Six tasks behind an index now: the editor is one panel rather than a section of a
+    // stacked page (FR-019). Selector update only.
+    await page.getByRole('button', { name: 'Secret types' }).click();
     await page.getByRole('button', { name: 'Define a secret type' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('E2E Router');
     await page.getByRole('textbox', { name: 'Field name' }).fill('Admin URL');
@@ -148,12 +156,14 @@ test.describe('V8 — custom templates need no deploy', () => {
     await expect(page.getByText(/E2E Router · 2 fields/)).toBeVisible({ timeout: 15_000 });
 
     // Available at once: a new secret type is a row, not a release (Principle V).
-    await page.getByRole('button', { name: 'Close settings' }).click();
+    await page.getByRole('button', { name: 'Back to the vault' }).click();
+    await page.getByRole('button', { name: 'New secret' }).click();
     await expect(page.getByRole('button', { name: 'E2E Router', exact: true })).toBeVisible();
   });
 
   test('warns before a change that would strand stored values', async ({ page }) => {
     await unlock(page, email);
+    await page.getByRole('button', { name: 'New secret' }).click();
     await page.getByRole('button', { name: 'E2E Router', exact: true }).click();
     await page.getByRole('textbox', { name: /^Title/ }).fill('v8-router');
     await page.getByRole('textbox', { name: /Admin URL/ }).fill('http://192.168.1.1');
@@ -162,6 +172,7 @@ test.describe('V8 — custom templates need no deploy', () => {
     await expect(page.getByText('v8-router', { exact: true })).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: 'Secret types' }).click();
     await page.getByRole('button', { name: 'Edit' }).first().click();
     // Drops "Admin password", which the stored secret has a value in.
     await page.getByRole('button', { name: 'Remove' }).nth(1).click();
@@ -213,6 +224,8 @@ test.describe('V9 — offline read', () => {
 
     // FR-057: nothing is offered that cannot work, and the reason is given.
     await expect(page.getByRole('button', { name: 'Secure Note', exact: true })).toHaveCount(0);
+    // Creation now has one entry point, so its absence is the check that matters (FR-007).
+    await expect(page.getByRole('button', { name: 'New secret' })).toHaveCount(0);
     await expect(page.getByText(/Adding and editing need a connection/i)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
@@ -252,6 +265,9 @@ test.describe('V15 — permanent deletion', () => {
     await register(page, email);
     await addSecureNote(page, 'v15-doomed', 'gone shortly');
 
+    // Delete moved into the detail pane, so the secret is selected first (FR-015). The
+    // assertions below are unchanged.
+    await page.getByRole('button', { name: /v15-doomed/ }).first().click();
     await page.getByRole('button', { name: 'Delete' }).first().click();
 
     // FR-053: the confirmation must name what is being deleted and be explicit about finality.

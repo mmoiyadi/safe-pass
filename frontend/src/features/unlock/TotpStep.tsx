@@ -62,7 +62,7 @@ export function TotpStep({
   }
 
   return (
-    <main>
+    <main className="column">
       <h1>Two-factor code</h1>
       <p style={{ color: 'var(--muted)' }}>
         {useBackup

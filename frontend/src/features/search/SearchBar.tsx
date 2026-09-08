@@ -5,18 +5,12 @@
  * feel like it is fighting the machine. The delay is short enough to read as instant.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Icon } from '../../components/Icon.js';
 
 const DEBOUNCE_MS = 120;
 
-export function SearchBar({
-  onQueryChange,
-  resultCount,
-  totalCount,
-}: {
-  onQueryChange: (query: string) => void;
-  resultCount: number | null;
-  totalCount: number;
-}) {
+export function SearchBar({ onQueryChange }: { onQueryChange: (query: string) => void }) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,37 +38,60 @@ export function SearchBar({
   }, []);
 
   return (
-    <div style={{ marginBottom: '0.85rem' }}>
-      <div style={{ position: 'relative' }}>
-        <input
-          ref={inputRef}
-          type="search"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Search titles, folders, tags…  (press /)"
-          aria-label="Search secrets"
-          // Never offer history or autofill on a box that sits over vault contents.
-          autoComplete="off"
-          spellCheck={false}
-          style={{
-            width: '100%',
-            padding: '0.55rem 0.7rem',
-            fontSize: '1rem',
-            border: '1px solid var(--border)',
-            borderRadius: 5,
-            background: 'var(--bg)',
-            color: 'var(--fg)',
-          }}
-        />
-      </div>
-
-      <small style={{ color: 'var(--muted)' }}>
-        {resultCount === null
-          ? `${totalCount} secret${totalCount === 1 ? '' : 's'}`
-          : `${resultCount} of ${totalCount} match`}
-        {' · '}
-        Runs entirely on this device — the server cannot read your titles, so it cannot search them.
-      </small>
+    <div style={pill}>
+      <Icon icon={Search} size={16} style={{ color: 'var(--color-neutral-700)' }} />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        // Shortened because the "/" hint is now a badge rather than part of the placeholder
+        // (FR-002b). Nothing else about this string changes.
+        placeholder="Search titles, folders, tags"
+        aria-label="Search secrets"
+        // Never offer history or autofill on a box that sits over vault contents.
+        autoComplete="off"
+        spellCheck={false}
+        style={input}
+      />
+      {/*
+        Decorative: the shortcut it advertises still works, but announcing "/" to a screen
+        reader would read as content rather than as the affordance it is (FR-026d).
+      */}
+      <kbd aria-hidden style={badge}>
+        /
+      </kbd>
     </div>
   );
 }
+
+const pill: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 9,
+  padding: '12px 18px',
+  borderRadius: 999,
+  background: 'var(--color-neutral-100)',
+  border: '1px solid var(--color-neutral-300)',
+};
+
+const input: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  color: 'var(--color-text)',
+  font: 'inherit',
+  fontSize: 14,
+};
+
+const badge: React.CSSProperties = {
+  padding: '1px 7px',
+  borderRadius: 6,
+  background: 'var(--color-neutral-200)',
+  color: 'var(--color-neutral-700)',
+  fontSize: 11.5,
+  fontWeight: 700,
+  fontFamily: 'inherit',
+};

@@ -9,6 +9,8 @@
  * a vault leaks in an office, and it is not the user's job to remember to hide it again.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Icon } from './Icon.js';
 
 const AUTO_HIDE_MS = 30_000;
 
@@ -50,24 +52,19 @@ export function SensitiveField({
       >
         {revealed ? value : masked}
       </code>
+      {/*
+        A round icon button rather than a text one — shape only. The accessible name is
+        unchanged and still carries the field label, which is the whole of what a screen
+        reader had before (FR-025).
+      */}
       <button
         type="button"
         onClick={() => setRevealed((r) => !r)}
         aria-label={revealed ? `Hide ${label}` : `Reveal ${label}`}
-        style={miniButton}
+        className="icon-button"
       >
-        {revealed ? 'Hide' : 'Reveal'}
+        <Icon icon={revealed ? EyeOff : Eye} size={15} />
       </button>
     </span>
   );
 }
-
-const miniButton: React.CSSProperties = {
-  padding: '0.2rem 0.5rem',
-  fontSize: '0.8rem',
-  borderRadius: 4,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  color: 'var(--fg)',
-  cursor: 'pointer',
-};

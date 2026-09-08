@@ -13,6 +13,18 @@ export const PASSWORD = 'correct horse battery staple';
 export const uniqueEmail = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}@example.test`;
 
+/**
+ * Signed in and inside the vault.
+ *
+ * The address used to be an `<h1>` in the account bar; the rail replaced that bar (T026) and
+ * carries the address in its account pill instead. Structure changed, behaviour did not — which
+ * is exactly the kind of update FR-032 permits and the kind it forbids weakening.
+ */
+async function expectSignedIn(page: Page, email: string, timeout: number): Promise<void> {
+  await expect(page.getByRole('navigation', { name: 'Vault navigation' })).toBeVisible({ timeout });
+  await expect(page.getByText(email, { exact: true })).toBeVisible({ timeout });
+}
+
 export async function register(page: Page, email: string): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create a new vault' }).click();
@@ -23,7 +35,7 @@ export async function register(page: Page, email: string): Promise<void> {
   await page.getByRole('checkbox', { name: /I understand/ }).check();
 
   await page.getByRole('button', { name: 'Create vault' }).click();
-  await expect(page.getByRole('heading', { name: email })).toBeVisible({ timeout: 30_000 });
+  await expectSignedIn(page, email, 30_000);
 }
 
 /**
@@ -38,7 +50,7 @@ export async function unlockInPlace(page: Page, email: string): Promise<void> {
   await page.getByRole('textbox', { name: 'Email address' }).fill(email);
   await page.getByRole('textbox', { name: 'Master password' }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Unlock' }).click();
-  await expect(page.getByRole('heading', { name: email })).toBeVisible({ timeout: 60_000 });
+  await expectSignedIn(page, email, 60_000);
 }
 
 export async function unlock(page: Page, email: string): Promise<void> {
@@ -46,7 +58,7 @@ export async function unlock(page: Page, email: string): Promise<void> {
   await page.getByRole('textbox', { name: 'Email address' }).fill(email);
   await page.getByRole('textbox', { name: 'Master password' }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Unlock' }).click();
-  await expect(page.getByRole('heading', { name: email })).toBeVisible({ timeout: 30_000 });
+  await expectSignedIn(page, email, 30_000);
 }
 
 export async function lock(page: Page): Promise<void> {
@@ -56,6 +68,8 @@ export async function lock(page: Page): Promise<void> {
 
 /** Stores a Secure Note, the simplest built-in type. */
 export async function addSecureNote(page: Page, title: string, body: string): Promise<void> {
+  // One action, then the type choice — the row of one button per template is gone (FR-018).
+  await page.getByRole('button', { name: 'New secret' }).click();
   await page.getByRole('button', { name: 'Secure Note', exact: true }).click();
   await page.getByRole('textbox', { name: /^Title/ }).fill(title);
   await page.getByRole('textbox', { name: /^Note/ }).fill(body);

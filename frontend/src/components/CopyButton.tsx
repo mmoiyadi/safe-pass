@@ -6,6 +6,8 @@
  * system clipboard where any other application can read it.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Copy } from 'lucide-react';
+import { Icon } from './Icon.js';
 
 export const CLEAR_AFTER_MS = 30_000;
 
@@ -54,27 +56,52 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   }
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-      <button type="button" onClick={() => void copy()} style={miniButton} aria-label={`Copy ${label}`}>
-        Copy
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="icon-button"
+        aria-label={`Copy ${label}`}
+      >
+        <Icon icon={Copy} size={15} />
       </button>
+      {/*
+        The acknowledgement moves out of the row it used to sit inside, so a row's width no
+        longer jumps when a countdown appears. Every one of the three states keeps its exact
+        wording: the countdown, the confirmation, and the refusal (FR-004).
+      */}
       {state === 'copied' && (
-        <small style={{ color: 'var(--muted)' }}>copied — clipboard clears in {remaining}s</small>
+        <small style={acknowledgement}>copied — clipboard clears in {remaining}s</small>
       )}
-      {state === 'cleared' && <small style={{ color: 'var(--muted)' }}>clipboard cleared</small>}
+      {state === 'cleared' && <small style={acknowledgement}>clipboard cleared</small>}
       {state === 'failed' && (
-        <small style={{ color: 'var(--danger)' }}>the browser refused clipboard access</small>
+        <small style={{ ...acknowledgement, color: 'var(--color-accent-700)' }}>
+          the browser refused clipboard access
+        </small>
       )}
     </span>
   );
 }
 
-const miniButton: React.CSSProperties = {
-  padding: '0.2rem 0.5rem',
-  fontSize: '0.8rem',
-  borderRadius: 4,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  color: 'var(--fg)',
-  cursor: 'pointer',
+/**
+ * Out of flow, as a small toast under the button.
+ *
+ * Inline, it stole width from whatever sat beside it — in a 352px list row that collapsed the
+ * title and summary to ellipses the moment anything was copied. The handoff asks for "a 12px
+ * line under the row or a toast rather than inline text" for exactly this reason. Taking it out
+ * of the flow also means no layout shifts when it appears and disappears (FR-024).
+ */
+const acknowledgement: React.CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  right: 0,
+  zIndex: 1,
+  marginTop: 2,
+  padding: '3px 9px',
+  borderRadius: 999,
+  background: 'var(--color-neutral-200)',
+  boxShadow: 'var(--shadow-sm)',
+  fontSize: 12,
+  color: 'var(--color-neutral-700)',
+  whiteSpace: 'nowrap',
 };

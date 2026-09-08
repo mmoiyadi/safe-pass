@@ -99,8 +99,8 @@ export function TwoFactor({ email }: { email: string }) {
   if (!status) return <p style={{ color: 'var(--muted)' }}>Loading…</p>;
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2>Two-factor authentication</h2>
+    <section>
+      <h3>Two-factor authentication</h3>
 
       {codes && (
         <div style={{ border: '1px solid var(--warn)', borderRadius: 6, padding: '0.85rem 1rem', marginBottom: '1rem' }}>

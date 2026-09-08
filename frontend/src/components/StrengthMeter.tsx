@@ -8,7 +8,16 @@ import { useEffect, useState } from 'react';
 import { MIN_LENGTH, assessMasterPassword, type StrengthResult } from '../crypto/password-strength.js';
 
 const LABELS = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'] as const;
-const COLORS = ['var(--danger)', 'var(--danger)', 'var(--warn)', 'var(--accent)', 'var(--accent)'];
+
+/*
+ * The segments are all one colour now (T056). The design system has no red, and shading the fill
+ * by score would have left weakness signalled by hue alone — which FR-021a forbids and which a
+ * colour-blind reader would miss entirely. How many segments are filled, and the label naming the
+ * band in words, carry the meaning instead. The bands, labels, problems, suggestions and the
+ * submit gating on `acceptable` are all unchanged.
+ */
+const FILLED = 'var(--color-accent)';
+const EMPTY = 'var(--color-neutral-300)';
 
 export function StrengthMeter({
   password,
@@ -42,14 +51,14 @@ export function StrengthMeter({
 
   if (password.length === 0) {
     return (
-      <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: '0.4rem 0 0' }}>
+      <p style={guidance}>
         At least {MIN_LENGTH} characters. A passphrase of several unrelated words is both
         stronger and easier to remember than a short, complicated one.
       </p>
     );
   }
 
-  if (!result) return <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Checking…</p>;
+  if (!result) return <p style={guidance}>Checking…</p>;
 
   return (
     <div style={{ marginTop: '0.5rem' }}>
@@ -59,35 +68,48 @@ export function StrengthMeter({
         aria-valuemin={0}
         aria-valuemax={4}
         aria-label="Master password strength"
-        style={{ display: 'flex', gap: 3 }}
+        style={{ display: 'flex', gap: 4 }}
       >
         {[0, 1, 2, 3, 4].map((i) => (
           <span
             key={i}
             style={{
               flex: 1,
-              height: 4,
-              borderRadius: 2,
-              background: i <= result.score ? COLORS[result.score] : 'var(--border)',
+              height: 5,
+              borderRadius: 999,
+              background: i <= result.score ? FILLED : EMPTY,
             }}
           />
         ))}
       </div>
-      <p style={{ fontSize: '0.85rem', margin: '0.4rem 0 0', color: COLORS[result.score] }}>
+      <p style={label}>
         {LABELS[result.score]}
         {result.acceptable ? ' — acceptable' : ''}
       </p>
       {result.problems.map((problem) => (
-        <p key={problem} style={{ fontSize: '0.85rem', margin: '0.2rem 0 0', color: 'var(--danger)' }}>
+        <p key={problem} style={{ ...guidance, color: 'var(--color-accent-700)' }}>
           {problem}
         </p>
       ))}
       {!result.acceptable &&
         result.suggestions.slice(0, 2).map((s) => (
-          <p key={s} style={{ fontSize: '0.85rem', margin: '0.2rem 0 0', color: 'var(--muted)' }}>
+          <p key={s} style={guidance}>
             {s}
           </p>
         ))}
     </div>
   );
 }
+
+const label: React.CSSProperties = {
+  margin: '6px 0 0',
+  fontSize: 13,
+  fontWeight: 700,
+  color: 'var(--color-accent-700)',
+};
+
+const guidance: React.CSSProperties = {
+  margin: '4px 0 0',
+  fontSize: 12.5,
+  color: 'var(--color-neutral-700)',
+};

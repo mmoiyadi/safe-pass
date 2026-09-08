@@ -46,8 +46,8 @@ export function OfflineAccess({ email }: { email: string }) {
   if (enabled === null) return null;
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2>Offline access</h2>
+    <section>
+      <h3>Offline access</h3>
 
       <p style={note}>
         With this on, a vault you have opened here at least once stays readable with no network.
@@ -58,6 +58,16 @@ export function OfflineAccess({ email }: { email: string }) {
         Reading only: creating, editing, deleting, and sharing all need a connection, and nothing
         is queued while offline. The copy is discarded after {DAYS} days, when you sign out, and
         when your access to a vault is withdrawn.
+      </p>
+
+      {/*
+        Relocated here VERBATIM from the search bar (FR-002a). The search row now carries only
+        the short form "· searched on this device"; this is the sentence that explains why that
+        matters, and FR-002 does not permit a security explanation to be reworded — only moved.
+        This is the panel that covers what the device does locally, so it is where it belongs.
+      */}
+      <p style={note}>
+        Runs entirely on this device — the server cannot read your titles, so it cannot search them.
       </p>
 
       <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.6rem 0' }}>
