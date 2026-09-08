@@ -111,10 +111,15 @@ export function DeleteDialog({
   );
 }
 
+/*
+ * The dialog vocabulary (T079/T080). Backdrop and panel only — every word of
+ * copy, the typed-title confirmation, and the folder dialog's refusal to
+ * pre-select a disposition are all untouched (FR-012).
+ */
 const backdrop: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.55)',
+  background: 'color-mix(in srgb, var(--color-neutral-900) 34%, transparent)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -123,10 +128,11 @@ const backdrop: React.CSSProperties = {
 };
 
 const panel: React.CSSProperties = {
-  background: 'var(--bg)',
+  boxShadow: 'var(--shadow-lg)',
+  background: 'var(--color-bg)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
-  padding: '1.25rem',
-  maxWidth: '28rem',
+  borderRadius: 28,
+  padding: '28px 30px',
+  maxWidth: '30rem',
   width: '100%',
 };

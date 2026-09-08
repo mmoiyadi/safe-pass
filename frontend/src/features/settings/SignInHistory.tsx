@@ -38,8 +38,8 @@ export function SignInHistory() {
   const failures = events.filter((e) => e.outcome !== 'success').length;
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2>Recent sign-ins</h2>
+    <section>
+      <h3>Recent sign-ins</h3>
       <p style={{ color: 'var(--muted)', fontSize: '0.92rem' }}>
         Kept for 90 days. Locations are deliberately rough — enough to notice something
         unfamiliar, not a record of where you have been.

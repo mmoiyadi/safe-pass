@@ -82,12 +82,18 @@ test.describe('what axe cannot check', () => {
     const email = uniqueEmail('a11y-mask');
     await register(page, email);
 
+    // One action, then the type choice (FR-018). Selector update only — the assertions below
+    // are untouched.
+    await page.getByRole('button', { name: 'New secret' }).click();
     await page.getByRole('button', { name: 'Website Account', exact: true }).click();
     await page.getByRole('textbox', { name: /^Title/ }).fill('masked-account');
     await page.getByRole('textbox', { name: /^Username/ }).fill('someone@example.test');
     await page.getByRole('textbox', { name: /^Password/ }).fill('hidden-value');
     await page.getByRole('button', { name: 'Save encrypted' }).click();
     await expect(page.getByText('masked-account', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    // Fields live in the detail pane now, so the row has to be selected to reach them (FR-015).
+    await page.getByRole('button', { name: /masked-account/ }).first().click();
 
     // A row of bullets with no accessible name reads as nothing at all: the user cannot tell a
     // masked password from a missing one, and the Reveal button has no context.
@@ -107,5 +113,74 @@ test.describe('what axe cannot check', () => {
       true,
     );
     expect(hasStatusRole).toBe(true);
+  });
+});
+
+/**
+ * Measured, not asserted (T067, T067a — FR-027, FR-029, CHK029).
+ *
+ * The stylesheet has claimed 44px targets for a long time and set 36px, and no test ever
+ * checked. These read what the browser actually laid out, which is the only thing a user meets.
+ *
+ * Computed rather than authored sizes for the same reason: a `rem` inherits and an `em`
+ * compounds, so a value that reads as 13px in the source can arrive as 9px on the page.
+ */
+test.describe('measured at 360px', () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 9999) > 640, 'narrow-viewport assertions only');
+
+  test('targets, text sizes and overflow are within the guarantees', async ({ page }) => {
+    await register(page, uniqueEmail('measure'));
+    await addSecureNote(page, 'measured-note', 'a body');
+
+    // --- T067: rendered target heights ---
+    const smallTargets = await page.evaluate(() => {
+      const found: string[] = [];
+      const nodes = document.querySelectorAll<HTMLElement>(
+        'button, a[href], input, select, textarea, [role="button"]',
+      );
+      for (const el of nodes) {
+        const style = getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+        // WCAG 2.5.8 exempts controls that flow inline within a sentence: their size is set by
+        // the text around them, and padding one out would break the line it sits in.
+        if (style.display === 'inline') continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        if (rect.height < 44) {
+          const name = el.getAttribute('aria-label') ?? (el.textContent ?? '').trim().slice(0, 30);
+          found.push(`${el.tagName.toLowerCase()} "${name}" is ${Math.round(rect.height)}px`);
+        }
+      }
+      return found;
+    });
+    expect(smallTargets, `targets under 44px:\n  ${smallTargets.join('\n  ')}`).toEqual([]);
+
+    // --- T067a: computed text sizes ---
+    const smallText = await page.evaluate(() => {
+      const found: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+        const ownText = [...el.childNodes].some(
+          (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0,
+        );
+        if (!ownText) continue;
+        const style = getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+        const size = Number.parseFloat(style.fontSize);
+        const interactive = el.closest('button, a[href], label, [role="button"]') !== null;
+        const floor = interactive ? 12.5 : 11.5;
+        if (size < floor) {
+          const text = (el.textContent ?? '').trim().slice(0, 30);
+          found.push(`${el.tagName.toLowerCase()} "${text}" at ${size}px (floor ${floor}px)`);
+        }
+      }
+      return found;
+    });
+    expect(smallText, `text below the minimum:\n  ${smallText.join('\n  ')}`).toEqual([]);
+
+    // --- FR-028: no horizontal scrolling at 360px ---
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, 'horizontal overflow in pixels').toBeLessThanOrEqual(0);
   });
 });

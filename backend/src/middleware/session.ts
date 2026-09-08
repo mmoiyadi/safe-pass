@@ -10,6 +10,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ApiError } from '@pm/shared';
 import type { PrismaClient, Session } from '../../prisma/generated/client/index.js';
 import { SESSION_COOKIE, findLiveSession, touch } from '../modules/auth/session.js';
+import { API_PREFIX } from '../static.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -46,6 +47,18 @@ const PENDING_TOTP_ALLOWED = new Set([
 export function makeSessionGuard(prisma: PrismaClient) {
   return async function sessionGuard(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
     const path = request.url.split('?')[0] ?? '';
+
+    /*
+     * Static assets are outside the guard, and must be: the app shell has to load before anyone
+     * can sign in, so a 401 on `/` or `/assets/*.js` would lock everyone out of the login screen.
+     *
+     * This is safe ONLY because every route that touches data is registered under `/api/v1`, and
+     * the shell itself is public by nature — HTML, JS, CSS and fonts, no user data. The invariant
+     * is enforced by `routes-are-namespaced.test.ts`, not merely asserted here: a route added
+     * outside `/api/` would be unguarded, and that test fails if one ever is.
+     */
+    if (!path.startsWith(API_PREFIX)) return;
+
     if (PUBLIC.has(path)) return;
 
     const token = request.cookies[SESSION_COOKIE];

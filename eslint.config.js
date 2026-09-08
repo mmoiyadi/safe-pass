@@ -15,6 +15,10 @@ export default tseslint.config(
       // Prisma's generated client. Thousands of errors from code we do not write and cannot
       // fix, which drowned out real findings until it was ignored here.
       'backend/prisma/generated/',
+      // The design handoff bundle: a vendored reference artifact, not source. Its bundled
+      // browser JS trips no-undef on window/document and would fail lint on code nobody here
+      // wrote or ships. Same reasoning as the generated client above.
+      'design_handoff_vault_workbench/',
     ],
   },
   js.configs.recommended,

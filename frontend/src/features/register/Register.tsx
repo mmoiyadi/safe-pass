@@ -38,7 +38,7 @@ export function Register({ onRegistered }: { onRegistered: (email: string) => vo
   }
 
   return (
-    <main>
+    <main className="column">
       <h1>Create your vault</h1>
 
       <section

@@ -33,7 +33,7 @@ export function VerifyLanding({ token, onDone }: { token: string; onDone: () => 
   }, [token]);
 
   return (
-    <main>
+    <main className="column">
       <h1>{state === 'done' ? 'Address confirmed' : 'Confirming your address'}</h1>
 
       {state === 'working' && <p style={{ color: 'var(--muted)' }}>One moment…</p>}

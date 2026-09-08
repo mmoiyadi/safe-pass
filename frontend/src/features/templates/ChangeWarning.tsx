@@ -94,11 +94,16 @@ export function ChangeWarning({
   );
 }
 
+/* The notice vocabulary (T076): warning weight from the accent ramp, not a
+   border and a colour of its own. Every word is unchanged (FR-002). */
 const panel: React.CSSProperties = {
-  border: '1px solid var(--danger)',
-  borderRadius: 6,
-  padding: '0.9rem 1rem',
-  margin: '1rem 0',
+  padding: '11px 14px',
+  borderRadius: 16,
+  background: 'var(--color-accent-200)',
+  color: 'var(--color-accent-800)',
+  fontSize: 12.5,
+  lineHeight: 1.45,
+  margin: '12px 0',
 };
 
 const title: React.CSSProperties = { margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--danger)' };

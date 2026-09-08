@@ -1,117 +1,420 @@
-:root {
-  color-scheme: light dark;
-  --bg: #fbfbfa;
-  --fg: #1a1a19;
-  --muted: #6b6b68;
-  --border: #e3e3e0;
-  --accent: #2f6f4e;
-  --danger: #a4342a;
-  --warn: #8a6410;
+/* ------------------------------------------------------------------ *
+ * Workbench redesign — drop-in replacement for frontend/src/theme.css
+ *
+ * Two things happen here, deliberately in one file:
+ *
+ * 1. The Organic design-system tokens are declared (--color-*, --font-*,
+ *    --space-*, --radius-*, --shadow-*). New UI is written against these.
+ *
+ * 2. The app's EXISTING variable names (--bg, --fg, --muted, --border,
+ *    --accent, --danger, --warn) are re-pointed at Organic values, so every
+ *    component not yet rewritten keeps working and immediately looks warmer
+ *    instead of looking broken. Delete each alias once nothing reads it.
+ *
+ * The dark-scheme block is removed on purpose: Organic is a single warm
+ * light theme. `color-scheme: light` stops the browser painting form
+ * controls and scrollbars dark on a cream page.
+ * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * Self-hosted faces (FR-031, T007/T013)
+ *
+ * The handoff imports these from a font CDN. That fetch happens at unlock
+ * time, so an offline session — which this application supports — would
+ * render the fallback stack instead of the intended faces. The files are
+ * vendored under public/fonts/ and precached by the service worker; their
+ * SIL OFL 1.1 licences ship beside them (FR-031a).
+ *
+ * Figtree is a variable font: one file covers 400-700, so the weights the
+ * design uses cost one request, not four.
+ * ------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'Caprasimo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/caprasimo-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Caprasimo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/caprasimo-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/figtree-var-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/figtree-var-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17181a;
-    --fg: #ececea;
-    --muted: #9a9a96;
-    --border: #2c2d30;
-    --accent: #6fbf92;
-    --danger: #e0796d;
-    --warn: #d6a944;
-  }
+:root {
+  color-scheme: light;
+
+  /* — Organic: roles — */
+  --color-bg: #f5ead8;
+  --color-surface: #ebddc5;
+  --color-text: #201e1d;
+  --color-accent: #c67139;
+  --color-accent-2: #7a8a5e;
+  --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
+
+  /* — Organic: neutral ramp — */
+  --color-neutral-100: #f9f4ed;
+  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  /* — Organic: accent (terracotta) ramp — */
+  --color-accent-100: #fff2eb;
+  --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;
+  --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  /* — Organic: second accent (sage) ramp — */
+  --color-accent-2-100: #f0fae1;
+  --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
+  --color-accent-2-700: #56633f;
+  --color-accent-2-800: #3d472b;
+  --color-accent-2-900: #272e1b;
+
+  --font-heading: 'Caprasimo', system-ui, sans-serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+
+  --space-1: 4.4px;
+  --space-2: 8.8px;
+  --space-3: 13.2px;
+  --space-4: 17.6px;
+  --space-6: 26.4px;
+  --space-8: 35.2px;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+
+  /* — Legacy aliases. Remove one at a time as components are rewritten. — */
+  --bg: var(--color-bg);
+  --fg: var(--color-text);
+  --muted: var(--color-neutral-700);
+  --border: var(--color-neutral-300);
+  /* --color-accent-700, not --color-accent: the lighter step is 3.03:1 as text on the cream
+     ground and 3.61:1 behind white, both under 4.5:1 (FR-029a). Every legacy component reads
+     this alias, so resolving it here resolves the whole class at once — which is the resolution
+     spec.md records under "Decisions taken -> Contrast". Caught by the axe pass at 360px. */
+  --accent: var(--color-accent-700);
+  /* No red in Organic: destructive weight comes from the deep terracotta step.
+     It reads as "careful" against the cream ground and still clears 4.5:1. */
+  --danger: var(--color-accent-700);
+  --warn: var(--color-accent-600);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 15px/1.55 var(--font-body);
 }
 
-main { max-width: 46rem; margin: 0 auto; padding: 1rem; }
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+h1 { font-size: 42px; }
+h2 { font-size: 32px; }
+h3 { font-size: 25px; }
+h4 { font-size: 20px; }
+
+/* The workbench fills the window; the old 46rem column no longer applies.
+   Screens that are still a single centred column (unlock, register, forgot,
+   TOTP, verify landing, reauth) opt back in with `.column`. */
+main { margin: 0; padding: 0; }
+.column { max-width: 34rem; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+
+a { color: var(--color-accent-700); text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-600); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+[disabled] { opacity: 0.45; }
 
 /* ------------------------------------------------------------------ *
- * Phone-sized screens (T132, FR-051, SC-009)
+ * The workbench layout (T063-T066, FR-020a, FR-028)
  *
- * Every primary task must be completable at 360px with no horizontal scrolling. The rules
- * below enforce that structurally rather than relying on each component to remember, because
- * the things that break a narrow layout here are not decorative: they are base64url ciphertext,
- * long URLs, and email addresses, none of which contain a space to wrap at.
+ * ONE breakpoint, at 900px. The rail (262px) and list (352px) are fixed, so
+ * between roughly 640 and 900 the detail pane is squeezed to nothing — the
+ * band the handoff never drew. Rather than invent a third layout for it, the
+ * stacked layout starts at 900px and covers the whole range below.
+ *
+ * Below it the panes become levels: the list fills the width, and choosing a
+ * secret gives its detail the screen. `data-detail-open` is set by the
+ * container that knows whether anything is selected, so which level shows is
+ * a CSS decision rather than a second rendering path in JS.
  * ------------------------------------------------------------------ */
 
-/* The page itself must never scroll sideways. Anything too wide scrolls inside its own box. */
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
+.workbench {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  height: 100vh;
+  margin: 0;
+  background: var(--color-bg);
+  overflow: hidden;
 }
 
-/*
- * Unbroken strings are the real hazard. `overflow-wrap` breaks them only where nothing else
- * works, so ordinary prose still wraps between words.
- */
-main,
-main p,
-main li,
-main dd,
-main code {
+.workbench-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.vault-panes {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Shown only in the stacked layout, where the list is not on screen beside it. */
+.detail-back { display: none; }
+
+.bottom-bar { display: none; }
+
+@media (max-width: 899px) {
+  .workbench { flex-direction: column; padding: 12px; gap: 12px; }
+
+  /* The rail becomes a scrolling strip: everything it carries stays reachable
+     rather than being hidden behind a control that does not exist yet. */
+  .rail {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+  .rail > * { flex-shrink: 0; }
+  .rail-footer { margin-top: 0; margin-left: auto; flex-direction: row; align-items: center; }
+  .rail-brand { display: none; }
+
+  .vault-panes { flex-direction: column; }
+  .list-column { width: 100%; }
+
+  .vault-panes[data-detail-open='true'] .list-column { display: none; }
+  .vault-panes[data-detail-open='false'] .detail-pane { display: none; }
+
+  .detail-back { display: inline-flex; }
+
+  .settings-rail { width: auto; flex-direction: row; overflow-x: auto; }
+
+  /* FR-027: every target is at least 44px below the breakpoint.
+     These are the sizes the axe pass MEASURES (T067) rather than the ones the
+     stylesheet claims — the rail rows sat at 40px and the search input at 24px
+     inside its 44px pill, and nothing had ever checked. */
+  button,
+  input,
+  select,
+  textarea,
+  .rail button {
+    min-height: 44px;
+  }
+
+  /* Rows become cards, so each is its own tap target on a small screen (T064). */
+  .secret-row {
+    background: var(--color-neutral-100);
+    border-radius: 22px;
+    padding: 0 15px 0 0;
+    min-height: 56px;
+  }
+  .secret-avatar { width: 40px; height: 40px; }
+
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 6px;
+    border-radius: 999px;
+    background: var(--color-surface);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Pane contents (T055-T061, T075, T077, T078)
+ *
+ * The handoff asks each component to keep its markup and copy and merely
+ * "adopt" the pane treatment. Doing that here rather than by editing a dozen
+ * components keeps their copy untouched — which is what FR-002 cares about —
+ * and means anything rendered into a pane inherits it for free.
+ * ------------------------------------------------------------------ */
+
+.pane p { font-size: 14px; line-height: 1.5; }
+
+.pane input[type='text'],
+.pane input[type='email'],
+.pane input[type='password'],
+.pane input[type='number'],
+.pane select {
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-neutral-300);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* The primary action of each panel. Secondary and destructive buttons keep
+   their own treatment, so this targets submits only. */
+.pane button[type='submit'] {
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  /* White on --color-accent is 3.61:1; the deeper step clears 4.5:1
+     (spec.md -> Decisions taken -> Contrast). */
+  background: var(--color-accent-700);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pane button[type='submit']:disabled { cursor: not-allowed; }
+
+/* ------------------------------------------------------------------ *
+ * Round icon buttons (T050, FR-027, CHK016)
+ *
+ * The handoff draws these at 32px; the accessibility requirement demands 44px
+ * at narrow widths, and the two conflicted until the breakpoint settled it.
+ * 32px applies only in the three-pane layout, where a pointer is the likely
+ * input; below 900px the stacked layout applies and every target is 44px.
+ * ------------------------------------------------------------------ */
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+
+.icon-button:hover { background: var(--color-neutral-300); }
+
+/* The rail's rows are 40px only in the three-pane layout. Scoped to a min-width rather
+   than left as a bare rule: it previously sat after the 899px block at equal specificity,
+   so source order silently beat the 44px floor and the stacked layout never got it.
+   Disjoint ranges cannot do that. Caught by the measured axe pass (T067). */
+@media (min-width: 900px) {
+  .rail button { min-height: 40px; }
+}
+
+@media (max-width: 899px) {
+  .icon-button { width: 44px; height: 44px; }
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion (T084, FR-024)
+ *
+ * Background and shadow only, and nothing that moves. Position, size and
+ * entrance animations are all excluded on purpose: this interface is read
+ * under stress, and something sliding into place while you are trying to find
+ * a password is noise, not polish.
+ *
+ * Suppressed entirely for anyone who has asked for reduced motion. The 120ms
+ * transitions are small, but vestibular disorders do not grade on a curve, and
+ * the setting is a request rather than a hint.
+ * ------------------------------------------------------------------ */
+
+button,
+.secret-row,
+.rail button,
+.icon-button {
+  transition: background 120ms ease-out, box-shadow 120ms ease-out, color 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Narrow screens (keeps the existing 360px guarantees, FR-051)
+ * ------------------------------------------------------------------ */
+
+html, body { max-width: 100%; overflow-x: hidden; }
+
+main, main p, main li, main dd, main code {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-/* An input at 100% of a narrow column still overflows once padding is added, without this. */
-input,
-select,
-textarea,
-button {
-  max-width: 100%;
-  font: inherit;
-}
-
-/* Long values must scroll within their own row rather than widening the page. */
-pre {
-  overflow-x: auto;
-  max-width: 100%;
-}
+input, select, textarea, button { max-width: 100%; font: inherit; }
+pre { overflow-x: auto; max-width: 100%; }
 
 @media (max-width: 30rem) {
-  main {
-    padding: 0.75rem;
-  }
-
-  /*
-   * The secret detail list is `auto 1fr` on a wide screen: label beside value. At phone width
-   * that leaves a value column too narrow to read a password in, so the label moves above.
-   */
-  main dl {
-    grid-template-columns: 1fr !important;
-  }
-
-  main dd {
-    margin-inline-start: 0;
-  }
-
-  /*
-   * Touch targets. A 0.15rem-padded tag chip is fine with a mouse and a coin toss with a
-   * thumb, so anything interactive gets a minimum height on a small screen.
-   */
-  main button,
-  main input[type='checkbox'] {
-    min-height: 2.25rem;
-  }
-
-  main input[type='checkbox'] {
-    min-width: 1.15rem;
-  }
-
-  /* Headings at desktop scale eat a phone screen before any content appears. */
-  h1 {
-    font-size: 1.35rem;
-  }
-
-  h2 {
-    font-size: 1.15rem;
-  }
+  .column { padding: var(--space-4) var(--space-3); }
+  main dl { grid-template-columns: 1fr !important; }
+  main dd { margin-inline-start: 0; }
+  main button, main input[type='checkbox'] { min-height: 44px; }
+  main input[type='checkbox'] { min-width: 1.15rem; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 24px; }
+  h3 { font-size: 20px; }
 }

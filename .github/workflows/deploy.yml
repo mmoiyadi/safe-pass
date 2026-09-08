@@ -1,0 +1,56 @@
+# Deployment, gated on the tests.
+#
+# Render can deploy on every push by itself, and that is the wrong default here: it would ship a
+# red build to the web and only tell you afterwards. The constitution requires automated tests to
+# pass before merge, and a change to a security-critical path must not merge on a red or skipped
+# suite — so `autoDeploy: false` in render.yaml, and the deploy happens here instead, only once
+# the audit workflow has finished successfully on main.
+#
+# Setup, once: create a Deploy Hook on the Render service (Settings -> Deploy Hook) and store the
+# URL as the repository secret RENDER_DEPLOY_HOOK. It is a bearer URL — anyone holding it can
+# trigger a deploy — so it belongs in secrets, never in this file.
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [audit]
+    types: [completed]
+    branches: [main]
+  # Available for a deliberate redeploy without a code change — a rolled-back env var, say.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A newer commit supersedes an in-flight deploy rather than racing it.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Trigger Render deploy
+    runs-on: ubuntu-latest
+    # workflow_dispatch has no workflow_run payload, hence the second clause.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Refuse to deploy without the hook configured
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "${HOOK}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK is not set. Add the Render deploy hook URL as a repository secret."
+            exit 1
+          fi
+
+      - name: Deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          # -f so an HTTP error is a failed step rather than a green tick over a refused deploy.
+          status=$(curl -fsS -X POST -o /dev/null -w '%{http_code}' "${HOOK}")
+          echo "Render accepted the deploy request (HTTP ${status})."
+          echo "Render builds asynchronously; watch the service's Events tab for the result."

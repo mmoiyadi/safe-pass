@@ -21,51 +21,48 @@ import { api } from '../../api/client.js';
 import { decrypt, encrypt } from '../../crypto/envelope.js';
 import { vaultKeyFor, writeKeyFor } from '../../vault/keyring.js';
 import { searchIndex, type SearchHit } from '../../search/index.js';
-import { SensitiveField } from '../../components/SensitiveField.js';
-import { CopyButton } from '../../components/CopyButton.js';
 import { TemplateForm, type TemplateFormValues } from '../templates/TemplateForm.js';
 import { DeleteDialog } from '../secret-detail/DeleteDialog.js';
 import {
-  CustomFieldList,
   CUSTOM_FIELDS_KEY,
   decodeCustomFields,
   encodeCustomFields,
-  type CustomField,
 } from '../secret-detail/CustomFields.js';
+import { SecretDetail } from '../secret-detail/SecretDetail.js';
 import type { CachedVault } from '../../vault/offline-cache.js';
-import { SearchBar } from '../search/SearchBar.js';
-import { Filters, UNFILED, type FilterState, type NamedItem } from './Filters.js';
-
-interface DecryptedSecret {
-  id: string;
-  title: string;
-  templateVersionId: string;
-  revision: number;
-  keyVersion: number;
-  folderId: string | null;
-  tagIds: string[];
-  fields: Record<string, string>;
-  /** This secret's own extra fields, unpacked from the single reserved envelope. */
-  custom: CustomField[];
-}
+import { UNFILED, type FilterState, type NamedItem } from './Filters.js';
+import { SecretListColumn } from './SecretListColumn.js';
+import type { DecryptedSecret } from './decrypted-secret.js';
+import type { VaultWithName } from './vault-name.js';
 
 export function SecretList({
   vaultId,
   templates,
-  shared,
+  vault,
   cached,
+  filters,
   onDataChanged,
 }: {
   vaultId: string;
   templates: TemplateVersionRecord[];
-  shared: boolean;
+  /** Needed for the detail footer, which says "Only you" for a personal vault (FR-030c). */
+  vault: VaultWithName | undefined;
+  /** Owned by `App` and edited from the rail; this component only applies it (T021a). */
+  filters: FilterState;
   /**
    * The device's encrypted copy, supplied when this session was opened with no network. When
    * present it is the ONLY source: the server is not reachable, so asking it would just fail
    * and leave the user staring at an empty vault they know is not empty (FR-054).
    */
   cached?: CachedVault | undefined;
-  onDataChanged?: (folders: NamedItem[], tags: NamedItem[], folderCounts: Map<string, number>) => void;
+  onDataChanged?: (next: {
+    folders: NamedItem[];
+    tags: NamedItem[];
+    folderCounts: Map<string, number>;
+    tagCounts: Map<string, number>;
+    unfiled: number;
+    total: number;
+  }) => void;
 }) {
   const [items, setItems] = useState<DecryptedSecret[]>([]);
   const [folders, setFolders] = useState<NamedItem[]>([]);
@@ -76,7 +73,12 @@ export function SecretList({
   const [editing, setEditing] = useState<DecryptedSecret | null>(null);
   const [deleting, setDeleting] = useState<DecryptedSecret | null>(null);
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<FilterState>({ folderId: null, tagIds: [] });
+  /**
+   * Which row the detail pane is showing. Only the ID is stored — see `selected` below.
+   */
+  const [selectedSecretId, setSelectedSecretId] = useState<string | null>(null);
+  /** True while the type choice is on screen, between "New secret" and a template being picked. */
+  const [choosing, setChoosing] = useState(false);
 
   /**
    * Older template versions fetched on demand. The templates prop carries current versions
@@ -138,6 +140,7 @@ export function SecretList({
           folderId: row.folderId,
           tagIds: row.tagIds,
           fields,
+          updatedAt: row.updatedAt,
         });
       }
 
@@ -224,9 +227,18 @@ export function SecretList({
     return counts;
   }, [items]);
 
+  const unfiled = useMemo(() => items.filter((i) => i.folderId === null).length, [items]);
+
   useEffect(() => {
-    onDataChanged?.(folders, tags, folderCounts);
-  }, [folders, tags, folderCounts, onDataChanged]);
+    onDataChanged?.({
+      folders,
+      tags,
+      folderCounts,
+      tagCounts,
+      unfiled,
+      total: items.length,
+    });
+  }, [folders, tags, folderCounts, tagCounts, unfiled, items.length, onDataChanged]);
 
   const hits: Map<string, SearchHit> | null = useMemo(() => {
     if (!query.trim()) return null;
@@ -251,6 +263,16 @@ export function SecretList({
 
     return result;
   }, [items, filters, hits]);
+
+  /**
+   * Derived, not merely stored (T034, FR-017).
+   *
+   * Looking the secret up in the VISIBLE list each render is what makes the rule hold for free:
+   * a secret filtered away, searched away, or deleted cannot leave the detail pane showing
+   * something that is no longer there, because there is nothing to find. Storing the object
+   * instead would need every one of those paths to remember to clear it.
+   */
+  const selected = visible.find((item) => item.id === selectedSecretId) ?? null;
 
   async function encryptValues(template: TemplateVersionRecord, values: TemplateFormValues) {
     const { key, keyVersion } = writeKeyFor(vaultId);
@@ -339,188 +361,142 @@ export function SecretList({
     await load();
   }
 
-  if (loading) return <p style={{ color: 'var(--muted)' }}>Decrypting…</p>;
+  const offline = Boolean(cached);
+  const editingTemplate = editing ? byId.get(editing.templateVersionId) : undefined;
+
+  /*
+   * Focus follows the level change, but only in the stacked layout (FR-026b).
+   *
+   * Side by side, activating a row leaves focus on it and Tab reaches the pane, which is what a
+   * pointer user expects. Stacked, the list is not on screen at all any more — leaving focus on
+   * a row nobody can see strands a keyboard user on an invisible element, so focus moves into
+   * the detail and the back control returns it to the row it came from.
+   */
+  const stacked = () =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+
+  function selectSecret(id: string) {
+    setSelectedSecretId(id);
+    if (!stacked()) return;
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.detail-back')?.focus());
+  }
+
+  function backToList() {
+    const previous = selectedSecretId;
+    setSelectedSecretId(null);
+    if (!stacked() || !previous) return;
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>(`[data-secret-id="${previous}"]`)?.focus(),
+    );
+  }
 
   return (
-    <section>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
-        <h2 style={{ margin: '0 0 0.75rem' }}>Secrets</h2>
-      </div>
-
-      {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
-
-      <SearchBar
+    <div className="vault-panes" data-detail-open={selected ? 'true' : 'false'}>
+      <SecretListColumn
+        items={visible}
+        hits={hits}
+        templates={byId}
+        folderName={folderName}
+        selectedId={selectedSecretId}
+        onSelect={selectSecret}
+        onNewSecret={() => {
+          // Creating clears the selection; Cancel returns to the prompt (FR-016b).
+          setSelectedSecretId(null);
+          setEditing(null);
+          setChoosing(true);
+        }}
+        query={query}
         onQueryChange={setQuery}
-        resultCount={hits ? visible.length : null}
         totalCount={items.length}
+        offline={offline}
+        loading={loading}
       />
 
-      <Filters
-        folders={folders}
-        tags={tags}
-        state={filters}
-        counts={{ byFolder: folderCounts, byTag: tagCounts, unfiled: items.filter((i) => !i.folderId).length }}
-        onChange={setFilters}
-      />
-
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {visible.map((item) => {
-          const template = byId.get(item.templateVersionId);
-          const hit = hits?.get(item.id);
-          return (
-            <li key={item.id} style={card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <div style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-                    {template?.name ?? 'Unknown type'}
-                    {item.folderId && ` · ${folderName.get(item.folderId) ?? ''}`}
-                    {hit && hit.matchedIn !== 'title' && ` · matched in ${hit.matchedIn}`}
-                  </div>
-                </div>
-                {!cached && (
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button type="button" onClick={() => setEditing(item)} style={miniButton}>
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleting(item)}
-                      style={{ ...miniButton, color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {template && (
-                <dl style={{ margin: '0.6rem 0 0', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.35rem 0.75rem' }}>
-                  {[...(template.fields as TemplateField[])]
-                    .sort((a, b) => a.order - b.order)
-                    .filter((f) => (item.fields[f.id] ?? '').length > 0)
-                    .map((field) => (
-                      <FieldRow key={field.id} field={field} value={item.fields[field.id] ?? ''} />
-                    ))}
-                </dl>
-              )}
-
-              <CustomFieldList fields={item.custom} />
-
-              {(folders.length > 0 || tags.length > 0) && (
-                <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {folders.length > 0 && (
-                    <label style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                      Folder{' '}
-                      <select
-                        value={item.folderId ?? ''}
-                        onChange={(e) => void file(item, e.target.value || null)}
-                        style={select}
-                      >
-                        <option value="">Unfiled</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {tags.map((tag) => {
-                    const on = item.tagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => void toggleTag(item, tag.id)}
-                        aria-pressed={on}
-                        style={{
-                          padding: '0.15rem 0.5rem',
-                          fontSize: '0.8rem',
-                          borderRadius: 999,
-                          border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                          background: on ? 'var(--accent)' : 'transparent',
-                          color: on ? '#fff' : 'var(--muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </li>
-          );
-        })}
-
-        {visible.length === 0 && items.length > 0 && (
-          <li style={{ color: 'var(--muted)', padding: '0.5rem 0' }}>
-            Nothing matches. {query && <>Try a shorter search, or </>}clear the filters.
-          </li>
-        )}
-        {items.length === 0 && (
-          <li style={{ color: 'var(--muted)', padding: '0.5rem 0' }}>Nothing stored yet.</li>
-        )}
-      </ul>
-
-      <div style={{ borderTop: '1px solid var(--border)', marginTop: '1.25rem', paddingTop: '1rem' }}>
-        {cached && (
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
-            Adding and editing need a connection. Reconnect to make changes — nothing you do here
-            is queued, so nothing will be applied later without you seeing it.
-          </p>
-        )}
-        {!cached && !adding && !editing && (
-          <>
-            <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>Add a secret</h3>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {templates.map((t) => (
-                <button key={t.id} type="button" onClick={() => setAdding(t)} style={miniButton}>
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {!cached && adding && (
-          <>
-            <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>New {adding.name}</h3>
-            <TemplateForm
-              template={adding}
-              filing={{ folders, tags }}
-              onSubmit={(v) => create(adding, v)}
-              onCancel={() => setAdding(null)}
-            />
-          </>
-        )}
-
-        {!cached && editing && byId.get(editing.templateVersionId) && (
-          <>
-            <h3 style={{ margin: '0 0 0.6rem', fontSize: '1rem' }}>Edit “{editing.title}”</h3>
-            <TemplateForm
-              template={byId.get(editing.templateVersionId)!}
-              initial={{
-                title: editing.title,
-                fields: editing.fields,
-                custom: editing.custom,
-                folderId: editing.folderId,
-                tagIds: editing.tagIds,
-              }}
-              filing={{ folders, tags }}
-              submitLabel="Save changes"
-              onSubmit={(v) => update(editing, v)}
-              onCancel={() => setEditing(null)}
-            />
-          </>
-        )}
-      </div>
+      {/*
+        The detail pane shows exactly one of four things: the type choice, a form, the selected
+        secret, or the prompt. Forms render HERE rather than in a dialog, so the list stays
+        visible and Cancel returns to what was on screen before (FR-016a).
+      */}
+      {choosing ? (
+        <div className="pane" style={formPane}>
+          <h3 style={{ margin: '0 0 14px' }}>New secret</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setChoosing(false);
+                  setAdding(t);
+                }}
+                style={choicePill}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => setChoosing(false)} style={cancelLink}>
+            Cancel
+          </button>
+        </div>
+      ) : adding ? (
+        <div className="pane" style={formPane}>
+          <h3 style={{ margin: '0 0 14px' }}>New {adding.name}</h3>
+          {error && <p style={conflict}>{error}</p>}
+          <TemplateForm
+            template={adding}
+            filing={{ folders, tags }}
+            onSubmit={(v) => create(adding, v)}
+            onCancel={() => setAdding(null)}
+          />
+        </div>
+      ) : editing && editingTemplate ? (
+        <div className="pane" style={formPane}>
+          <h3 style={{ margin: '0 0 14px' }}>Edit “{editing.title}”</h3>
+          {/*
+            The refusal of a conflicting save, verbatim and above the form, with what was typed
+            still in the fields (FR-011, FR-016c).
+          */}
+          {error && <p style={conflict}>{error}</p>}
+          <TemplateForm
+            template={editingTemplate}
+            initial={{
+              title: editing.title,
+              fields: editing.fields,
+              custom: editing.custom,
+              folderId: editing.folderId,
+              tagIds: editing.tagIds,
+            }}
+            filing={{ folders, tags }}
+            submitLabel="Save changes"
+            onSubmit={(v) => update(editing, v)}
+            onCancel={() => setEditing(null)}
+          />
+        </div>
+      ) : (
+        <SecretDetail
+          onBack={backToList}
+          secret={selected}
+          template={selected ? byId.get(selected.templateVersionId) : undefined}
+          vault={vault}
+          folders={folders}
+          tags={tags}
+          onEdit={() => selected && setEditing(selected)}
+          onDelete={() => selected && setDeleting(selected)}
+          onFile={async (folderId) => {
+            if (selected) await file(selected, folderId);
+          }}
+          onToggleTag={async (tagId) => {
+            if (selected) await toggleTag(selected, tagId);
+          }}
+          offline={offline}
+        />
+      )}
 
       {deleting && (
         <DeleteDialog
           title={deleting.title}
-          shared={shared}
+          shared={vault ? vault.kind !== 'personal' : false}
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
             await api('DELETE', `/vaults/${vaultId}/secrets/${deleting.id}`);
@@ -529,54 +505,46 @@ export function SecretList({
           }}
         />
       )}
-    </section>
+    </div>
   );
 }
 
-/** One field row. Masking and copy availability both follow the field's own flags. */
-function FieldRow({ field, value }: { field: TemplateField; value: string }) {
-  return (
-    <>
-      <dt style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{field.label}</dt>
-      <dd style={{ margin: 0, fontSize: '0.92rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        {field.sensitive ? (
-          <>
-            <SensitiveField value={value} label={field.label} multiline={field.type === 'multiline'} />
-            <CopyButton value={value} label={field.label} />
-          </>
-        ) : (
-          <>
-            <span style={{ overflowWrap: 'anywhere' }}>{value}</span>
-            <CopyButton value={value} label={field.label} />
-          </>
-        )}
-      </dd>
-    </>
-  );
-}
-
-const card: React.CSSProperties = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  padding: '0.75rem 0.85rem',
-  marginBottom: '0.65rem',
+const formPane: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  padding: '30px 32px',
+  borderRadius: 28,
+  background: 'var(--color-neutral-100)',
+  overflowY: 'auto',
 };
 
-const miniButton: React.CSSProperties = {
-  padding: '0.25rem 0.6rem',
-  fontSize: '0.85rem',
-  borderRadius: 4,
-  border: '1px solid var(--border)',
+const conflict: React.CSSProperties = {
+  margin: '0 0 14px',
+  fontSize: 13.5,
+  color: 'var(--color-accent-700)',
+};
+
+const choicePill: React.CSSProperties = {
+  padding: '9px 16px',
+  borderRadius: 999,
+  border: '1px solid var(--color-neutral-300)',
   background: 'transparent',
-  color: 'var(--fg)',
+  color: 'var(--color-text)',
+  font: 'inherit',
+  fontSize: 13.5,
+  fontWeight: 600,
   cursor: 'pointer',
 };
 
-const select: React.CSSProperties = {
-  padding: '0.2rem 0.35rem',
-  fontSize: '0.85rem',
-  border: '1px solid var(--border)',
-  borderRadius: 4,
-  background: 'var(--bg)',
-  color: 'var(--fg)',
+const cancelLink: React.CSSProperties = {
+  marginTop: 16,
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: 'var(--color-accent-700)',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 600,
+  textDecoration: 'underline',
+  cursor: 'pointer',
 };

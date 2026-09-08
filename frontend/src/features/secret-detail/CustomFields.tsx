@@ -161,11 +161,13 @@ export function CustomFieldList({ fields }: { fields: CustomField[] }) {
     });
 
   return (
-    <dl style={{ margin: '0.5rem 0' }}>
+    /* Laid out on the same 132px grid as the template field rows above, so a secret's own
+       fields read as part of the same list rather than as an appendix (T041). */
+    <dl style={customGrid}>
       {named.map((field) => (
-        <div key={field.id} style={{ display: 'flex', gap: '0.5rem', padding: '0.2rem 0' }}>
-          <dt style={{ color: 'var(--muted)', minWidth: '8rem', fontSize: '0.9rem' }}>{field.label}</dt>
-          <dd style={{ margin: 0, fontSize: '0.9rem', wordBreak: 'break-all' }}>
+        <div key={field.id} style={{ display: 'contents' }}>
+          <dt style={{ color: 'var(--color-neutral-700)', fontSize: 12.5 }}>{field.label}</dt>
+          <dd style={{ margin: 0, fontSize: 14, wordBreak: 'break-all', minWidth: 0 }}>
             {field.sensitive && !shown.has(field.id) ? (
               <>
                 <span aria-label="hidden value">••••••••</span>{' '}
@@ -175,7 +177,7 @@ export function CustomFieldList({ fields }: { fields: CustomField[] }) {
               </>
             ) : (
               <>
-                {field.value || <span style={{ color: 'var(--muted)' }}>empty</span>}
+                {field.value || <span style={{ color: 'var(--color-neutral-700)' }}>empty</span>}
                 {field.sensitive && (
                   <>
                     {' '}
@@ -243,8 +245,18 @@ const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
   padding: 0,
-  color: 'var(--accent)',
+  color: 'var(--color-accent-700)',
   cursor: 'pointer',
   font: 'inherit',
-  fontSize: '0.85rem',
+  fontSize: 12.5,
+  fontWeight: 600,
+  textDecoration: 'underline',
+};
+
+const customGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '132px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: '4px 16px',
+  margin: '8px 0 0',
 };

@@ -31,7 +31,7 @@ export function ForgotPassword({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <main>
+    <main className="column">
       <h1>Forgotten master password</h1>
 
       <section

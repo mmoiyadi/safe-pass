@@ -77,7 +77,7 @@ export function Unlock({
   }
 
   return (
-    <main>
+    <main className="column">
       <h1>Unlock your vault</h1>
       <form onSubmit={submit}>
         <label style={{ display: 'block', marginBottom: '0.85rem' }}>

@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client.js';
-import type { VaultWithName } from '../vault-list/VaultSwitcher.js';
+import type { VaultWithName } from '../vault-list/vault-name.js';
 
 interface AwaitingCompletion {
   id: string;
@@ -26,9 +26,16 @@ interface AwaitingCompletion {
 export function IncomingInvitations({
   vaults,
   onResponded,
+  onHasContent,
 }: {
   vaults: VaultWithName[];
   onResponded: () => Promise<void>;
+  /**
+   * Whether this notice has anything to show. `Notices` shows at most one notice at a time
+   * (FR-020) and cannot tell without asking: half the answer is the fetched `awaiting` list,
+   * which only this component holds.
+   */
+  onHasContent?: (has: boolean) => void;
 }) {
   const [awaiting, setAwaiting] = useState<AwaitingCompletion[]>([]);
   const [busy, setBusy] = useState(false);
@@ -44,7 +51,11 @@ export function IncomingInvitations({
   useEffect(() => void load(), [load]);
 
   const acceptable = vaults.filter((v) => v.status === 'invited');
-  if (acceptable.length === 0 && awaiting.length === 0) return null;
+  const hasContent = acceptable.length > 0 || awaiting.length > 0;
+
+  useEffect(() => onHasContent?.(hasContent), [hasContent, onHasContent]);
+
+  if (!hasContent) return null;
 
   async function respond(vaultId: string, action: 'accept' | 'decline') {
     setBusy(true);

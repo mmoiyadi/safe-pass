@@ -229,3 +229,13 @@ are resolved. Two items need a check during implementation rather than a decisio
 - **`Filters.tsx`'s exported types** (`FilterState`, `NamedItem`, `UNFILED`) are imported by both
   `SecretList` and `App`; they need a home when the component is absorbed into the rail. Suggested:
   keep the module, export the types and `UNFILED` from it, and delete only the component.
+
+## Icon-name verification (T006, CHK035)
+
+Checked 2026-09-07 against `lucide-react` pinned at **1.42.0**. All **32** icon names the handoff
+lists under Assets resolve as exports: shield, lock, key-round, clock, inbox, folder, users, user,
+user-plus, plus, search, copy, eye, eye-off, pencil, trash-2, settings, timer, refresh-cw,
+cloud-off, mail, mail-check, triangle-alert, hourglass, chevron-down, arrow-left, history, archive,
+file-text, smartphone, list-ordered, x.
+
+**None missing**, so FR-022c's substitution clause is not exercised. Re-run the check if the pin moves.
