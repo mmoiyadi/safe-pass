@@ -80,6 +80,11 @@ persists and grants `CREATE ROLE`, which the schema needs — see the next secti
 Migrations run in the build command. There is no pre-deploy hook on the free plan, and running
 them at startup would repeat them on every wake from sleep.
 
+`NODE_ENV=production` applies during the build as well as at runtime, and pnpm reads it: it skips
+devDependencies and says so. That removes `prisma` and `@types/node`, which the build needs, so
+the install passes `--prod=false`. Do not drop that flag to tidy the command up — the build fails
+with `Command "prisma" not found` and `Cannot find name 'btoa'`, neither of which names its cause.
+
 **On the free plan the service sleeps after about fifteen minutes idle**, and the first request
 after that waits roughly thirty to sixty seconds for the container. The application itself boots
 in about a quarter of a second, so the wait is the platform, not the app. Two things blunt it: the

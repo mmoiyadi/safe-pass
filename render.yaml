@@ -22,10 +22,20 @@ services:
 
     # Migrations run here rather than at startup. The free plan has no pre-deploy hook, and doing
     # it in the start command would re-run them on every wake from sleep.
+    #
+    # `--prod=false` is load-bearing. NODE_ENV=production below applies at BUILD time as well as
+    # at runtime, and pnpm then skips devDependencies — it says so plainly: "devDependencies:
+    # skipped because NODE_ENV is set to production". That removes the two things the build needs
+    # most: `prisma`, which is a backend devDependency, and `@types/node`, which is what declares
+    # `btoa`/`atob` for shared/src/envelope.ts. The first build failed on exactly those.
+    #
+    # `set -e` because a multi-line block otherwise runs every line regardless, so one missing
+    # tool becomes three unrelated-looking errors and the real cause scrolls past.
     buildCommand: |
+      set -e
       corepack enable
       corepack prepare pnpm@9.12.0 --activate
-      pnpm install --frozen-lockfile
+      pnpm install --frozen-lockfile --prod=false
       pnpm --filter backend exec prisma generate --schema src/db/schema.prisma
       pnpm -r build
       pnpm --filter backend exec prisma migrate deploy --schema src/db/schema.prisma
