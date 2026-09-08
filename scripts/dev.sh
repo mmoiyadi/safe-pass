@@ -18,6 +18,11 @@ fi
 # Both children die with this script, however it exits.
 trap 'kill 0' EXIT INT TERM
 
+# The shared package resolves to its BUILD at runtime, so that `node backend/dist/server.js`
+# works in production (Node cannot load TypeScript). Building it here keeps a fresh clone
+# working with nothing but `pnpm dev`.
+pnpm --filter @pm/shared build >/dev/null
+
 echo "API   → http://localhost:3000"
 # `tsx watch`, not plain `tsx`: without it a backend edit is silently ignored while the web app
 # hot-reloads around it, so a new request field looks accepted and is quietly dropped.

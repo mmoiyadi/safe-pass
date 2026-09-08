@@ -43,8 +43,18 @@ pnpm -r build
 node backend/dist/server.js
 ```
 
-Serve `frontend/dist/` as static files from the same origin as the API. Same-origin matters:
-session cookies are `SameSite=Strict`, and the service worker's scope is the origin.
+The API serves `frontend/dist/` itself, so one process answers both and the origin is shared by
+construction. Same-origin matters: session cookies are `SameSite=Strict`, and the service
+worker's scope is the origin — split them across two hosts and both break, quietly.
+
+`pnpm -r build` must run first: the API loads `@pm/shared` from its build, and Node cannot load
+TypeScript. Set `WEB_DIST` to serve the web build from somewhere other than `frontend/dist`; if
+no build is found the API starts anyway and serves only the API, which is the right failure for
+an API-only deployment.
+
+Nothing outside `/api/v1` is behind the session guard — it cannot be, since the sign-in screen
+has to load before anyone has a session. `backend/tests/security/routes-are-namespaced.test.ts`
+fails if a route is ever added outside that prefix, so the exemption stays safe.
 
 ### The database role
 

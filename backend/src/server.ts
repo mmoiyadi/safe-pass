@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie';
 import { registerErrorHandler } from './middleware/errors.js';
 import { loggerOptions } from './middleware/logging.js';
 import { registerRateLimit } from './middleware/rate-limit.js';
+import { registerStatic } from './static.js';
 import { makeSessionGuard } from './middleware/session.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { accountRoutes } from './modules/auth/account.routes.js';
@@ -90,6 +91,9 @@ export async function buildServer(deps: ServerDeps) {
   await app.register(exportRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
   await app.register(importRoutes(deps.prisma), { prefix: '/api/v1/vaults' });
   await app.register(templateRoutes(deps.prisma), { prefix: '/api/v1/templates' });
+
+  // Last, so every API route is already registered and wins the more-specific match.
+  await registerStatic(app);
 
   return app;
 }
