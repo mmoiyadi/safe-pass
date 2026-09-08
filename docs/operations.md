@@ -29,9 +29,9 @@ repository.
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | yes | `postgresql://user:pass@host:5432/db` |
-| `SESSION_SECRET` | yes | 32+ random bytes. Rotating it signs every user out. |
-| `APP_URL` | yes | Public origin. Used to build verification and invitation links. |
-| `SMTP_URL` | yes | `smtp://user:pass@host:587` |
+| `COOKIE_SECRET` | yes | 32+ random bytes. The server refuses to start without it. Rotating it signs every user out. |
+| `APP_URL` | yes | Public origin, e.g. `https://safe-pass.onrender.com`. Builds verification and invitation links. **Defaults to `http://localhost:5173` if unset** — the server starts and emails unusable links, which looks like success. |
+| `SMTP_URL` | yes | `smtp://user:pass@host:587`. **Defaults to `smtp://localhost:1025` if unset**, so mail silently goes nowhere. |
 | `NODE_ENV` | yes | `production` |
 
 ### Steps
@@ -55,6 +55,38 @@ an API-only deployment.
 Nothing outside `/api/v1` is behind the session guard — it cannot be, since the sign-in screen
 has to load before anyone has a session. `backend/tests/security/routes-are-namespaced.test.ts`
 fails if a route is ever added outside that prefix, so the exemption stays safe.
+
+### Deploying to Render, with Postgres elsewhere
+
+`render.yaml` in the repository root describes the service. One service serves both the API and
+the web app, because they must share an origin.
+
+The database is deliberately not part of the blueprint: Render's free Postgres has historically
+expired on a timer, and a vault is the wrong thing to lose on a deadline. Neon's free tier
+persists and grants `CREATE ROLE`, which the schema needs — see the next section.
+
+1. Create the database first and copy its connection string.
+2. In Render, **New → Blueprint**, point it at this repository. It reads `render.yaml`.
+3. Set the three secrets the blueprint marks `sync: false` — `DATABASE_URL`, `APP_URL`,
+   `SMTP_URL`. `COOKIE_SECRET` is generated for you. `PORT` is supplied by Render and read by
+   `server.ts`; do not set it.
+4. On the service, **Settings → Deploy Hook**, copy the URL, and store it in GitHub as the
+   repository secret `RENDER_DEPLOY_HOOK`.
+5. Push to `main`. The audit workflow runs typecheck, lint, build and the full suite; only if it
+   passes does `deploy.yml` call the hook. `autoDeploy` is off precisely so a red build cannot
+   reach the web.
+6. Verify the `pm_app` role bound correctly, as below. Do this once, after the first deploy.
+
+Migrations run in the build command. There is no pre-deploy hook on the free plan, and running
+them at startup would repeat them on every wake from sleep.
+
+**On the free plan the service sleeps after about fifteen minutes idle**, and the first request
+after that waits roughly thirty to sixty seconds for the container. The application itself boots
+in about a quarter of a second, so the wait is the platform, not the app. Two things blunt it: the
+service worker paints the interface from cache while the server wakes, and a user with offline
+access enabled can read their vault without the server at all.
+
+---
 
 ### The database role
 
@@ -209,7 +241,7 @@ on the client, and the server does no key derivation per request.
    personal data and is notifiable.
 3. Notify within 72 hours where GDPR or the DPDP Act applies. Say specifically what was and was
    not exposed — a vague notice invites users to assume the worst, which here would be wrong.
-4. Rotate `SESSION_SECRET` to invalidate every session.
+4. Rotate `COOKIE_SECRET` to invalidate every session.
 5. Advise users to change their master password. Note honestly that this re-wraps their key
    rather than re-encrypting their data, so a leaked dump remains readable by anyone who
    *already* had the old password — which, by the above, is nobody.
@@ -224,7 +256,7 @@ master passwords as they are typed. This is the limit described in
 1. Take the service offline. A password manager serving unverified code is worse than one that
    is down.
 2. Rebuild from known-good sources; do not patch in place.
-3. Rotate `SESSION_SECRET` and every credential the servers held.
+3. Rotate `COOKIE_SECRET` and every credential the servers held.
 4. Notify users that they should change their master password **and** the passwords of anything
    they unlocked during the exposure window.
 

@@ -1,0 +1,58 @@
+# Render blueprint (https://render.com/docs/blueprint-spec).
+#
+# One service. The API serves the built web app from its own origin, because the two cannot be
+# split: session cookies are SameSite=Strict and the service worker's scope is its origin, so a
+# frontend on a second host would send no cookies and hold no offline vault.
+#
+# The database is deliberately NOT here. Render's free Postgres has historically expired on a
+# timer, and a password vault is the wrong thing to lose on a deadline. Point DATABASE_URL at a
+# provider whose free tier persists — Neon works, and grants CREATE ROLE, which this schema needs
+# (see the pm_app note in docs/operations.md).
+
+services:
+  - type: web
+    name: safe-pass
+    runtime: node
+    plan: free
+    branch: main
+
+    # Deployment is triggered by CI, not by the push itself: a red test must never reach the web.
+    # See .github/workflows/deploy.yml, which fires only after the audit workflow passes on main.
+    autoDeploy: false
+
+    # Migrations run here rather than at startup. The free plan has no pre-deploy hook, and doing
+    # it in the start command would re-run them on every wake from sleep.
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@9.12.0 --activate
+      pnpm install --frozen-lockfile
+      pnpm --filter backend exec prisma generate --schema src/db/schema.prisma
+      pnpm -r build
+      pnpm --filter backend exec prisma migrate deploy --schema src/db/schema.prisma
+
+    startCommand: node backend/dist/server.js
+
+    # Render probes this to decide the instance is up. It is public (session.ts PUBLIC set), so
+    # the probe does not need credentials.
+    healthCheckPath: /api/v1/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # The name the code actually reads (server.ts, via requireEnv). Generated once by Render
+      # and never shown to anyone; rotating it signs every user out.
+      - key: COOKIE_SECRET
+        generateValue: true
+
+      # Set in the dashboard. sync:false keeps them out of the repository.
+      - key: DATABASE_URL
+        sync: false
+
+      # The public origin, used to build verification and invitation links. If this is wrong the
+      # server still starts and emails links to localhost, which looks like success.
+      - key: APP_URL
+        sync: false
+
+      - key: SMTP_URL
+        sync: false
