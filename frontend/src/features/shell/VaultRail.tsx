@@ -41,6 +41,7 @@ import { LockCountdown } from './LockCountdown.js';
 import type { Screen } from './screen.js';
 
 export interface VaultRailProps {
+  screen: Screen;
   vaults: VaultWithName[];
   selectedVaultId: string;
   onSelectVault: (id: string) => void;
@@ -61,6 +62,7 @@ export interface VaultRailProps {
 }
 
 export function VaultRail({
+  screen,
   vaults,
   selectedVaultId,
   onSelectVault,
@@ -112,15 +114,35 @@ export function VaultRail({
         />
       </section>
 
+      {/*
+        The two vault screens the old tab strip carried (FR-013b).
+        
+        Unconditional, deliberately. The handoff reaches Organise through a "Manage" link inside
+        the Folders section — which is absent exactly when it is needed most, because a vault with
+        no folders yet renders no Folders section (FR-013a). A new account could never create its
+        first folder. Sharing had no rail entry at all and existed only in the phone layout's
+        bottom bar, so above the breakpoint it was simply gone. Both are capabilities that existed
+        before the redesign, and FR-001 does not allow losing either.
+      */}
+      <section aria-label="Vault screens" style={group}>
+        <NavRow
+          icon={FolderIcon}
+          label="Folders & tags"
+          selected={screen === 'organise'}
+          onClick={() => onNavigate('organise')}
+        />
+        <NavRow
+          icon={Users}
+          label="Sharing"
+          selected={screen === 'sharing'}
+          onClick={() => onNavigate('sharing')}
+        />
+      </section>
+
       {/* FR-013a: no folders means no heading either. */}
       {folders.length > 0 && (
         <section aria-label="Folders" style={group}>
-          <div style={sectionHeaderRow}>
-            <span style={sectionLabel}>Folders</span>
-            <button type="button" onClick={() => onNavigate('organise')} style={manageLink}>
-              Manage
-            </button>
-          </div>
+          <span style={sectionLabel}>Folders</span>
           {folders.map((folder) => (
             <ScopeRow
               key={folder.id}
@@ -335,6 +357,30 @@ function VaultSection({
 
       {error && <p style={{ color: 'var(--color-accent-700)', fontSize: 12.5, margin: '6px 0 0' }}>{error}</p>}
     </section>
+  );
+}
+
+function NavRow({
+  icon,
+  label,
+  selected,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={selected ? 'page' : undefined}
+      style={selected ? vaultRowSelected : vaultRow}
+    >
+      <Icon icon={icon} size={16} />
+      <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+    </button>
   );
 }
 

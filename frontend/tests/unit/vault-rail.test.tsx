@@ -32,6 +32,7 @@ const noFilters: FilterState = { folderId: null, tagIds: [] };
 function renderRail(over: Partial<React.ComponentProps<typeof VaultRail>> = {}) {
   const onFiltersChange = vi.fn();
   const props: React.ComponentProps<typeof VaultRail> = {
+    screen: 'vault',
     vaults: [vault()],
     selectedVaultId: 'v1',
     onSelectVault: vi.fn(),
@@ -142,6 +143,40 @@ describe('vault rows', () => {
   it('hides New vault offline, since creating one needs the network (FR-007)', () => {
     renderRail({ offline: true });
     expect(screen.queryByRole('button', { name: /New vault/ })).toBeNull();
+  });
+});
+
+describe('the vault screens stay reachable (FR-013b, FR-001)', () => {
+  /*
+   * The bug this pins: Organise was reached through a "Manage" link inside the Folders section,
+   * and that section is omitted when there are no folders (FR-013a) — so a brand-new vault, the
+   * one case where you must create a folder, was the one case with no way to. Sharing had no rail
+   * entry at all and lived only in the phone layout's bottom bar, so it vanished above 900px.
+   * Both were reachable before the redesign, and losing either breaks FR-001.
+   */
+  it('offers Folders & tags with no folders and no tags', () => {
+    const { props } = renderRail({ folders: [], tags: [] });
+    fireEvent.click(screen.getByRole('button', { name: /Folders & tags/ }));
+    expect(props.onNavigate).toHaveBeenCalledWith('organise');
+  });
+
+  it('offers Sharing with no folders and no tags', () => {
+    const { props } = renderRail({ folders: [], tags: [] });
+    fireEvent.click(screen.getByRole('button', { name: /Sharing/ }));
+    expect(props.onNavigate).toHaveBeenCalledWith('sharing');
+  });
+
+  it('still offers both once folders and tags exist', () => {
+    renderRail({ folders: [{ id: 'f1', name: 'Work' }], tags: [{ id: 't1', name: 'urgent' }] });
+    expect(screen.getByRole('button', { name: /Folders & tags/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Sharing/ })).toBeTruthy();
+  });
+
+  it('marks the current screen', () => {
+    renderRail({ screen: 'organise' });
+    expect(
+      screen.getByRole('button', { name: /Folders & tags/ }).getAttribute('aria-current'),
+    ).toBe('page');
   });
 });
 

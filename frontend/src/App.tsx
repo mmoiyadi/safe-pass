@@ -340,6 +340,7 @@ export function App() {
         />
       ) : (
       <VaultRail
+        screen={screen}
         vaults={active}
         selectedVaultId={vault?.id ?? ''}
         onSelectVault={(id) => {
