@@ -57,7 +57,10 @@ function parseSecrets(raw: unknown): IncomingSecret[] {
   });
 }
 
-function parseNamed(raw: unknown, label: string): Array<{ id: string; name: string; keyVersion: number }> {
+function parseNamed(
+  raw: unknown,
+  label: string,
+): Array<{ id: string; name: string; keyVersion: number }> {
   if (!Array.isArray(raw)) throw new ApiError('VALIDATION_FAILED', `${label} must be an array`);
   return raw.map((entry, index) => {
     const n = entry as Record<string, unknown>;
@@ -86,88 +89,118 @@ export function importRoutes(prisma: PrismaClient) {
       // which is the whole point of Principle V.
       const templates = Array.isArray(body['templates']) ? body['templates'] : [];
 
-      const created = await prisma.$transaction(async (tx) => {
-        const vault = await tx.vault.create({
-          data: { ownerId: userId, name: bytes(name), kind: 'standard' },
-        });
-        const membership = await tx.vaultMembership.create({
-          data: { vaultId: vault.id, userId, role: 'owner', status: 'active', acceptedAt: new Date() },
-        });
-        await tx.vaultKeyWrap.create({
-          data: { membershipId: membership.id, keyVersion: 1, wrappedVaultKey: bytes(wrappedVaultKey) },
-        });
-
-        for (const template of templates as Array<Record<string, unknown>>) {
-          const id = String(template['id'] ?? '');
-          if (!id) continue;
-          const existing = await tx.templateVersion.findUnique({ where: { id } });
-          if (existing) continue;
-
-          // Restored as a custom template owned by the importer: a built-in belongs to the
-          // product, and claiming to be one would let a file inject a template every account
-          // can see.
-          const owned = await tx.template.create({ data: { kind: 'custom', ownerId: userId } });
-          const version = await tx.templateVersion.create({
-            data: {
-              id,
-              templateId: owned.id,
-              version: Number(template['version'] ?? 1),
-              name: String(template['name'] ?? 'Restored type'),
-              fields: (template['fields'] ?? []) as never,
-            },
+      /*
+       * An explicit timeout, because the default is five seconds and SC-014 requires a
+       * 5,000-secret vault to restore.
+       *
+       * The whole restore is one transaction on purpose: a half-restored vault — some secrets,
+       * none of the tags — is worse than a failed restore, because it looks like it worked. So
+       * the transaction has to be allowed to take as long as the restore legitimately takes,
+       * rather than the restore being cut to fit a limit meant for short interactive work.
+       *
+       * Caught by CI, which is roughly three times slower than a developer machine: the same
+       * import runs in 1.6s locally and hit 5001ms on the runner — over by one millisecond.
+       */
+      const created = await prisma.$transaction(
+        async (tx) => {
+          const vault = await tx.vault.create({
+            data: { ownerId: userId, name: bytes(name), kind: 'standard' },
           });
-          await tx.template.update({
-            where: { id: owned.id },
-            data: { currentVersionId: version.id },
-          });
-        }
-
-        // Ids are remapped, so a restore into an account that already holds the original vault
-        // cannot collide with it.
-        const folderIds = new Map<string, string>();
-        for (const folder of folders) {
-          const row = await tx.folder.create({
-            data: { vaultId: vault.id, name: bytes(folder.name), keyVersion: folder.keyVersion },
-          });
-          folderIds.set(folder.id, row.id);
-        }
-
-        const tagIds = new Map<string, string>();
-        for (const tag of tags) {
-          const row = await tx.tag.create({
-            data: { vaultId: vault.id, name: bytes(tag.name), keyVersion: tag.keyVersion },
-          });
-          tagIds.set(tag.id, row.id);
-        }
-
-        for (const secret of secrets) {
-          const row = await tx.secret.create({
+          const membership = await tx.vaultMembership.create({
             data: {
               vaultId: vault.id,
-              templateVersionId: secret.templateVersionId,
-              title: bytes(secret.title),
-              fieldValues: secret.fieldValues,
-              keyVersion: secret.keyVersion,
-              folderId: secret.folderId ? (folderIds.get(secret.folderId) ?? null) : null,
+              userId,
+              role: 'owner',
+              status: 'active',
+              acceptedAt: new Date(),
             },
           });
-          const mapped = secret.tagIds.map((t) => tagIds.get(t)).filter((t): t is string => !!t);
-          if (mapped.length > 0) {
-            await tx.secretTag.createMany({
-              data: mapped.map((tagId) => ({ secretId: row.id, tagId })),
+          await tx.vaultKeyWrap.create({
+            data: {
+              membershipId: membership.id,
+              keyVersion: 1,
+              wrappedVaultKey: bytes(wrappedVaultKey),
+            },
+          });
+
+          for (const template of templates as Array<Record<string, unknown>>) {
+            const id = String(template['id'] ?? '');
+            if (!id) continue;
+            const existing = await tx.templateVersion.findUnique({ where: { id } });
+            if (existing) continue;
+
+            // Restored as a custom template owned by the importer: a built-in belongs to the
+            // product, and claiming to be one would let a file inject a template every account
+            // can see.
+            const owned = await tx.template.create({ data: { kind: 'custom', ownerId: userId } });
+            const version = await tx.templateVersion.create({
+              data: {
+                id,
+                templateId: owned.id,
+                version: Number(template['version'] ?? 1),
+                name: String(template['name'] ?? 'Restored type'),
+                fields: (template['fields'] ?? []) as never,
+              },
+            });
+            await tx.template.update({
+              where: { id: owned.id },
+              data: { currentVersionId: version.id },
             });
           }
-        }
 
-        await record(tx, {
-          vaultId: vault.id,
-          actorId: userId,
-          action: 'vault_created',
-          metadata: { restored: true, secrets: secrets.length },
-        });
+          // Ids are remapped, so a restore into an account that already holds the original vault
+          // cannot collide with it.
+          const folderIds = new Map<string, string>();
+          for (const folder of folders) {
+            const row = await tx.folder.create({
+              data: { vaultId: vault.id, name: bytes(folder.name), keyVersion: folder.keyVersion },
+            });
+            folderIds.set(folder.id, row.id);
+          }
 
-        return vault;
-      });
+          const tagIds = new Map<string, string>();
+          for (const tag of tags) {
+            const row = await tx.tag.create({
+              data: { vaultId: vault.id, name: bytes(tag.name), keyVersion: tag.keyVersion },
+            });
+            tagIds.set(tag.id, row.id);
+          }
+
+          for (const secret of secrets) {
+            const row = await tx.secret.create({
+              data: {
+                vaultId: vault.id,
+                templateVersionId: secret.templateVersionId,
+                title: bytes(secret.title),
+                fieldValues: secret.fieldValues,
+                keyVersion: secret.keyVersion,
+                folderId: secret.folderId ? (folderIds.get(secret.folderId) ?? null) : null,
+              },
+            });
+            const mapped = secret.tagIds.map((t) => tagIds.get(t)).filter((t): t is string => !!t);
+            if (mapped.length > 0) {
+              await tx.secretTag.createMany({
+                data: mapped.map((tagId) => ({ secretId: row.id, tagId })),
+              });
+            }
+          }
+
+          await record(tx, {
+            vaultId: vault.id,
+            actorId: userId,
+            action: 'vault_created',
+            metadata: { restored: true, secrets: secrets.length },
+          });
+
+          return vault;
+        },
+        {
+          // Generous rather than tuned: the cost of being wrong is a failed restore of somebody's
+          // whole vault, and this runs once, by hand, on a vault the user is recovering.
+          timeout: 120_000,
+          maxWait: 10_000,
+        },
+      );
 
       return reply.code(201).send({ id: created.id, secrets: secrets.length });
     });
