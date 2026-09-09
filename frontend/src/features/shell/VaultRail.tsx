@@ -453,22 +453,7 @@ const sectionLabel: React.CSSProperties = {
   padding: '0 12px',
 };
 
-const sectionHeaderRow: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-};
 
-const manageLink: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  padding: '0 12px',
-  font: 'inherit',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--color-accent-700)',
-  cursor: 'pointer',
-};
 
 const vaultRow: React.CSSProperties = {
   display: 'flex',
