@@ -23,7 +23,6 @@ import {
   Plus,
   RefreshCw,
   Settings as SettingsIcon,
-  Shield,
   User,
   Users,
 } from 'lucide-react';
@@ -35,6 +34,7 @@ import { generateVaultKey, wrapVaultKeyForMember } from '../../crypto/vault-key.
 import { importPublicKey } from '../../crypto/user-key.js';
 import { getKeyring } from '../../vault/session.js';
 import { Icon } from '../../components/Icon.js';
+import { Mark } from '../../components/Mark.js';
 import { UNFILED, type FilterState, type NamedItem } from '../vault-list/Filters.js';
 import type { VaultWithName } from '../vault-list/vault-name.js';
 import { LockCountdown } from './LockCountdown.js';
@@ -240,13 +240,21 @@ export function VaultRail({
 
 function Brand() {
   return (
-    <div className="rail-brand" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 8px' }}>
-      <span style={brandMark} aria-hidden>
-        <Icon icon={Shield} size={17} style={{ color: '#fff' }} />
+    <div className="rail-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
+      <span style={brandMark}>
+        <Mark size={20} />
       </span>
-      {/* FR-022a: the application's own name. The handoff's "Keyhouse" is written as
-          "(or the product name)", and naming the product is not a visual decision. */}
-      <span style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>Password Manager</span>
+      {/*
+        The only place in the interface that uses the icon form (FR-010). Everywhere else — the
+        unlock screen, mail, the backup file — the word alone is enough.
+
+        This supersedes FR-022a of the vault workbench redesign, which required the rail to read
+        "Password Manager" on the grounds that naming a product is not a visual decision. Naming
+        it is the whole point of this feature.
+      */}
+      <span style={{ fontFamily: 'var(--font-heading)', fontSize: 19, letterSpacing: '-0.01em' }}>
+        Cairn
+      </span>
     </div>
   );
 }
@@ -565,14 +573,17 @@ const avatar: React.CSSProperties = {
   fontWeight: 700,
 };
 
+/** Cream mark on terracotta. Clear space here is 9.3-11.6px against a 3.0px rule (FR-011). */
 const brandMark: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  background: 'var(--color-accent-700)',
+  width: 34,
+  height: 34,
+  flexShrink: 0,
+  borderRadius: 11,
+  background: 'var(--color-accent)',
+  color: 'var(--color-bg)',
 };
 
 const settingsPill: React.CSSProperties = {

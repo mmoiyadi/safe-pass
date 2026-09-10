@@ -91,7 +91,7 @@ export function buildOtpAuthUri(params: {
   account: string;
   issuer?: string;
 }): string {
-  const issuer = params.issuer ?? 'Password Manager';
+  const issuer = params.issuer ?? 'Cairn';
   return new TOTP({
     issuer,
     label: params.account,
