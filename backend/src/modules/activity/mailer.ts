@@ -46,7 +46,7 @@ export async function sendMail(mail: Mail): Promise<void> {
         `MAIL FROM:<no-reply@passwordmanager.local>`,
         `RCPT TO:<${mail.to}>`,
         `DATA`,
-        `From: Password Manager <no-reply@passwordmanager.local>`,
+        `From: Cairn <no-reply@passwordmanager.local>`,
         `To: ${mail.to}`,
         `Subject: ${mail.subject}`,
         ``,

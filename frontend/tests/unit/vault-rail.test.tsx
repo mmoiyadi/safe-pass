@@ -180,10 +180,11 @@ describe('the vault screens stay reachable (FR-013b, FR-001)', () => {
   });
 });
 
-describe('the product name (FR-022a)', () => {
-  it('uses the application name, not the handoff placeholder', () => {
+describe('the product name (FR-002, superseding FR-022a)', () => {
+  it('names the product, not the old generic label or the handoff placeholder', () => {
     renderRail();
-    expect(screen.getByText('Password Manager')).toBeTruthy();
+    expect(screen.getByText('Cairn')).toBeTruthy();
+    expect(screen.queryByText('Password Manager')).toBeNull();
     expect(screen.queryByText('Keyhouse')).toBeNull();
   });
 });

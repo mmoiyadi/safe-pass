@@ -76,7 +76,10 @@ export function Backup({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `vault-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      // Named for the product: this file sits in a download folder for years, which makes it
+      // one of the longest-lived strings we emit. Import reads the file's CONTENTS and never
+      // its name, so a backup taken under the old name still restores (FR-002a).
+      anchor.download = `cairn-backup-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
 
